@@ -1,0 +1,276 @@
+body {
+    background-color: #111;
+    color: #eee;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 0; /* Remove default body margin */
+    overflow: hidden; /* Prevent scrollbars when content is hidden */
+}
+
+/* App Wrapper for main game and HUD */
+#app-wrapper {
+    display: flex; /* Use flexbox for two-column layout */
+    min-width: 900px; /* Minimum width for the game */
+    min-height: 600px; /* Minimum height for the game */
+    height: 100vh; /* Take full viewport height */
+    width: 100vw; /* Take full viewport width */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+#main-game-area {
+    flex: 4; /* Takes 80% of the width (4/5) */
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center game container horizontally */
+    justify-content: center; /* Center game container vertically */
+    padding: 20px; /* Add some padding around the game area */
+    box-sizing: border-box;
+}
+
+#main-game-area h1 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+#game-container {
+    display: inline-grid;
+    border: 2px solid #555;
+    background-color: #000;
+    position: relative; /* Needed for positioning sprites */
+    /* The grid-template-columns will be set by game.js based on game.width */
+}
+
+.tile {
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    line-height: 20px;
+    font-size: 18px;
+}
+
+.sprite {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    image-rendering: pixelated; /* For crisp pixel art */
+}
+
+#hud-container {
+    flex: 1; /* Takes 20% of the width (1/5) */
+    background-color: #222;
+    border-left: 2px solid #555;
+    box-sizing: border-box;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+}
+
+#hud-top, #hud-middle, #hud-bottom {
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+#hud-middle, #hud-bottom {
+    /* border-top: 1px solid #555; */ /* Removed */
+}
+
+.hud-separator {
+    text-align: center;
+    color: #555;
+    margin: 10px 0;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 20px; /* To ensure it doesn't reach the edges */
+}
+
+#hud-top {
+    flex: 0 1 auto; /* Shrink but don't grow, based on content */
+}
+
+#hud-middle {
+    flex: 1 1 auto; /* Grow and shrink as needed */
+    display: flex;
+    flex-direction: column;
+}
+
+#message-log {
+    flex-grow: 1; /* Allow it to take up available space */
+    height: 150px; /* Fixed height for the message log */
+    overflow-y: auto; /* Enable vertical scrolling */
+    border: 1px solid #555;
+    padding: 10px;
+    margin-top: 10px;
+    background-color: #1a1a1a;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #eee; /* Default message color */
+}
+
+.message-log-entry {
+    margin-bottom: 5px;
+}
+
+.message-log-entry.green {
+    color: #0f0; /* Green color for specific messages */
+}
+
+#hud-bottom {
+    flex: 1 1 auto; /* Grow and shrink as needed */
+}
+
+#hud-container h2, #hud-container h3 {
+    margin-top: 0;
+}
+
+#hud-title, #area-name {
+    color: #ff0; /* Yellow text for titles */
+    margin-bottom: 10px; /* Add space below titles */
+}
+
+#hud-bars-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    height: 20px;
+}
+
+.bar {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    background-color: #555; /* Background for the empty part of the bar */
+    overflow: hidden; /* Hide overflow of the fill */
+}
+
+.bar-fill {
+    height: 100%;
+    width: 100%; /* Default to full */
+    background-color: orange;
+    display: flex; /* Use flex to center the letter */
+    align-items: center; /* Vertically center the letter */
+    justify-content: center; /* Horizontally center the letter */
+    transition: width 0.2s ease-out; /* Smooth transition for width changes */
+}
+
+#bar-hunger .bar-fill { background-color: orange; }
+#bar-rest .bar-fill { background-color: #888; } /* Grey */
+#bar-stress .bar-fill { background-color: #0f0; } /* Green */
+
+.bar-letter {
+    color: white;
+    font-weight: bold;
+    position: absolute; /* Position letter over the fill */
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#hud-bottom div {
+    margin-top: 5px;
+    color: #0ff; /* Cyan text for area info */
+}
+
+#area-air {
+    margin-left: 20px; /* Add space between temp and air */
+}
+
+.game-message {
+    position: absolute;
+    background-color: black;
+    border: 1px solid white;
+    color: white;
+    padding: 5px 10px;
+    z-index: 10;
+    text-align: center;
+    /* Position is set dynamically via JavaScript */
+}
+
+.menu-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: black;
+    border: 1px solid white;
+    padding: 20px;
+    z-index: 20;
+    min-width: 200px;
+}
+
+.menu-container h3 {
+    margin-top: 0;
+    text-align: center;
+    color: #ff0;
+}
+
+.menu-option {
+    padding: 5px;
+    margin: 5px 0;
+    cursor: pointer;
+}
+
+.menu-option.selected {
+    background-color: #555;
+    color: #fff;
+}
+
+#item-name-overlay-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Allow clicks to pass through to the game */
+    z-index: 15; /* Above game tiles, below menus */
+}
+
+.item-name-tag {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
+    border: 1px solid white;
+    color: white;
+    padding: 2px 5px;
+    font-size: 12px;
+    white-space: nowrap; /* Prevent text wrapping */
+    transform: translateX(-50%); /* Center horizontally above the item */
+    z-index: 15;
+}
+
+
+#hud-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+#hud-stats > div {
+    color: #0f0; /* Green text */
+    font-size: 80%;
+}
+
+
+/* Resize Message */
+#resize-message {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #eee;
+    font-size: 24px;
+    text-align: center;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* Media Query to hide game and show resize message */
+@media (max-width: 899px), (max-height: 599px) {
+    #app-wrapper {
+        display: none; /* Hide the game and HUD */
+    }
+    #resize-message {
+        display: flex; /* Show the resize message */
+    }
+}

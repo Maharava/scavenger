@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rogue-like</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-wrapper">
+        <div id="main-game-area">
+            <h1>Rogue-like</h1>
+            <div id="game-container">
+                <div id="item-name-overlay-container"></div>
+            </div>
+            <div id="message-overlay-container"></div>
+        </div>
+        <div id="hud-container">
+            <div id="hud-top">
+                <h2 id="hud-title"></h2>
+                <div id="hud-bars-container">
+                    <div id="bar-hunger" class="bar"><div class="bar-fill"><span class="bar-letter">H</span></div></div>
+                    <div id="bar-rest" class="bar"><span class="bar-letter">R</span></div>
+                    <div id="bar-stress" class="bar"><span class="bar-letter">S</span></div>
+                </div>
+                <div id="hud-stats">
+                    <div id="hud-head"></div>
+                    <div id="hud-chest"></div>
+                    <div id="hud-left-arm"></div>
+                    <div id="hud-left-leg"></div>
+                    <div id="hud-right-arm"></div>
+                    <div id="hud-right-leg"></div>
+                </div>
+            </div>
+            <div class="hud-separator">--------------------</div>
+            <div id="hud-bottom">
+                <h3 id="area-name">Area</h3>
+                <div>
+                    <span id="area-temp"></span>
+                    <span id="area-air"></span>
+                </div>
+            </div>
+            <div class="hud-separator">--------------------</div>
+            <div id="hud-middle">
+                <h3>Messages</h3>
+                <div id="message-log"></div>
+            </div>
+        </div>
+    </div>
+    <div id="resize-message">
+        <p>Please increase your window size to play the game.</p>
+        <p>Minimum recommended: 1200px width, 800px height.</p>
+    </div>
+    <script src="ecs.js"></script>
+    <script src="components.js"></script>
+    <script src="systems.js"></script>
+    <script src="gamedata/creatures.js"></script>
+    <script src="gamedata/interactables.js"></script>
+    <script src="gamedata/map.js"></script>
+    <script src="world-builder.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
