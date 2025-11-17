@@ -119,4 +119,5 @@ The actions for the menu options are defined in the `MENU_ACTIONS` object in `ga
 | `close_menu`   | Closes the currently open menu by removing its `MenuComponent`.             |
 | `open_door`    | Replaces the activated interactable with the 'DOOR_OPEN' entity.            |
 | `close_door`   | Replaces the activated interactable with the 'DOOR_CLOSED' entity.          |
+| `use_item`     | Consumes an item from the player's inventory, applying its effects (e.g., RESTORE_HUNGER). |
 

@@ -23,6 +23,7 @@ This is how we'll define all the items in the game using ECS. Note that while th
 -   **ItemComponent**: The most basic component for any item.
     -   `name`: "Steel Plate"
     -   `description`: "A slab of reinforced steel."
+    -   `weight`: 500 (weight in grams)
 -   **RenderableComponent**: What the item looks like.
     -   `char`: "s"
     -   `colour`: "#ccc"
@@ -83,12 +84,59 @@ This is where ECS shines. Equipment is an entity that holds other entities (its 
 The inventory system is managed by the `InventoryComponent`. Any entity can have an inventory by simply adding this component to it. This allows players, crates, and even dead creatures to hold items.
 
 -   **`InventoryComponent`**:
-    -   `capacity`: The number of items the inventory can hold.
-    -   `items`: An array that stores the unique **entity IDs** of the items it contains.
+    -   `capacity`: The number of item slots the inventory can hold.
+    -   `maxWeight`: Maximum weight in grams (default 3000g).
+    -   `currentWeight`: Current carried weight in grams.
+    -   `items`: A Map that stores item data as Map<itemName, { entityId: number, quantity: number }>.
 
 When an item is "picked up", its entity is not destroyed. Instead, its `PositionComponent` is removed (so it no longer appears in the world) and its ID is added to the player's `InventoryComponent`. Dropping an item does the reverse: the ID is removed from the inventory, and a `PositionComponent` is added back to the item entity.
 
-## 4. Full Component List
+## 4. Workbench Module System
+
+The workbench allows players to swap modules on their modular equipment (guns and armor). This system provides an intuitive interface for customizing equipment with different parts.
+
+### How It Works
+
+1. **Accessing the Workbench**: Players activate a workbench interactable to open the workbench menu, which shows all equipment items (equipped and in inventory) that have an `AttachmentSlotsComponent`.
+
+2. **Viewing Modules**: When a player selects an equipment item, they see a list of all its module slots and what's currently installed in each slot.
+
+3. **Swapping Modules**: Selecting a module slot opens a submenu showing:
+   - Option to remove the currently installed module (if one exists)
+   - List of compatible modules from the player's inventory that can be installed
+
+4. **Module Info Display**: When navigating through modules (whether in the workbench, inventory, or inspect menu), a white-bordered black box appears above the menu showing:
+   - Module name (in yellow)
+   - Module description (in gray)
+   - Stat modifiers (in green), if any
+
+### Menu Actions
+
+The workbench uses the following menu actions (defined in `MENU_ACTIONS`):
+
+- **`workbench_modules`**: Shows all module slots for a piece of equipment. Each slot displays what's currently installed or "Empty" if vacant. Each slot is selectable and leads to the swap menu.
+
+- **`swap_module_menu`**: Shows compatible modules from inventory that can be installed in the selected slot, plus an option to remove the current module if one is installed.
+
+- **`swap_module`**: Performs the actual module swap. If replacing a module, the old module goes to inventory and the new one is installed. If just removing, the module goes to inventory and the slot becomes empty.
+
+### Generic Modules
+
+To support the modular system, generic variants have been created for all required module types:
+
+**Gun Modules** (required for guns):
+- **Grips**: Basic, Compact, Ergonomic, Textured
+- **Chambers**: Basic, Reinforced, Lightweight, Precision
+- **Barrels**: Basic, Long, Compact, Rifled
+
+**Armor Modules** (required for armor):
+- **Underlays**: Basic, Padded, Mesh, Thermal
+- **Materials**: Basic, Composite, Ceramic, Polymer
+- **Overlays**: Basic, Reflective, Ablative, Camouflage
+
+These generic modules have no stat modifiers, providing a baseline for equipment functionality. Future variants can include stat modifiers via the `StatModifierComponent`.
+
+## 5. Full Component List
 
 This is a list of all components currently implemented in the game.
 
@@ -102,9 +150,9 @@ This is a list of all components currently implemented in the game.
 -   **`InteractableComponent`**: Marks an entity as interactable.
     -   `{ script, scriptArgs }` (The `script` from `SCRIPT_REGISTRY` is triggered on activation).
 -   **`ItemComponent`**: The base component for any item.
-    -   `{ name, description }`
+    -   `{ name, description, weight }` (weight is in grams)
 -   **`InventoryComponent`**: Gives an entity the ability to hold other entities (items).
-    -   `{ capacity, items[] }`
+    -   `{ capacity, maxWeight, currentWeight, items<Map> }`
 -   **`ActionComponent`**: A temporary component added to an entity to signify it is performing an action. It is usually removed by a system after being processed.
     -   `{ name, payload }` (e.g., `name: 'move'`, `payload: { dx: 1, dy: 0 }`).
 -   **`StackableComponent`**: For items that can be stacked.
@@ -130,7 +178,9 @@ This is a list of all components currently implemented in the game.
 -   **`StatModifierComponent`**: Applies stat modifiers to an entity.
     -   `{ modifiers: { [statName]: value } }`
 -   **`MenuComponent`**: Holds the state for an active in-game menu.
-    -   `{ title, options[], selectedIndex, interactable }`
+    -   `{ title, options[], selectedIndex, submenu, submenuSelectedIndex, activeMenu, highlightedModule, interactable }`
+    -   The `submenu` field holds nested menu data for side-by-side menu displays.
+    -   The `highlightedModule` field stores the entity ID of a module to display info for (used in workbench and inventory).
 -   **`MessageComponent`**: Holds text and duration for a temporary on-screen message.
     -   `{ text, duration }`
 

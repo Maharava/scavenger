@@ -51,10 +51,20 @@ const INTERACTABLE_DATA = [
         "char": "*",
         "colour": "#e0e0e0",
         "solid": false,
+        "weight": 50,
         "script": "pickupItem",
         "scriptArgs": {
             "effect": "RESTORE_HUNGER",
             "value": 15
         }
+    },
+    {
+        "id": "WORKBENCH",
+        "name": "Workbench",
+        "char": "W",
+        "colour": "#963",
+        "solid": true,
+        "script": "openWorkbenchMenu",
+        "scriptArgs": {}
     }
 ];

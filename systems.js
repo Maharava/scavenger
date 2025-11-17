@@ -8,6 +8,7 @@ class RenderSystem extends System {
     }
 
     update(world) {
+        this.world = world; // Store reference for helper methods
         const container = world.game.container;
         const width = world.game.width;
         const height = world.game.height;
@@ -70,6 +71,35 @@ class RenderSystem extends System {
     }
 
     #renderMenu(container, menu) {
+        const menuWrapper = document.createElement('div');
+        menuWrapper.className = 'menu-wrapper';
+
+        // Determine highlighted module from selected option
+        let highlightedModuleEntity = null;
+        if (menu.activeMenu === 'main' && menu.options[menu.selectedIndex]) {
+            highlightedModuleEntity = menu.options[menu.selectedIndex].moduleEntity;
+        } else if (menu.activeMenu === 'submenu' && menu.submenu && menu.submenu.options[menu.submenuSelectedIndex]) {
+            highlightedModuleEntity = menu.submenu.options[menu.submenuSelectedIndex].moduleEntity;
+        }
+
+        // Override with manually set highlighted module (for inventory parts)
+        if (menu.highlightedModule !== null) {
+            highlightedModuleEntity = { id: menu.highlightedModule };
+        }
+
+        // Render module info box if a module is highlighted
+        if (highlightedModuleEntity) {
+            const moduleInfoBox = this.#renderModuleInfo(highlightedModuleEntity);
+            if (moduleInfoBox) {
+                menuWrapper.appendChild(moduleInfoBox);
+            }
+        }
+
+        // Create wrapper for menu containers
+        const containersWrapper = document.createElement('div');
+        containersWrapper.className = 'menu-containers-wrapper';
+
+        // Render main menu
         const menuContainer = document.createElement('div');
         menuContainer.className = 'menu-container';
         const menuTitle = document.createElement('h3');
@@ -78,18 +108,94 @@ class RenderSystem extends System {
         menu.options.forEach((option, index) => {
             const optionElement = document.createElement('div');
             optionElement.className = 'menu-option';
-            if (index === menu.selectedIndex) {
+            if (index === menu.selectedIndex && menu.activeMenu === 'main') {
                 optionElement.classList.add('selected');
             }
             optionElement.textContent = option.label;
             menuContainer.appendChild(optionElement);
         });
-        container.appendChild(menuContainer);
+        containersWrapper.appendChild(menuContainer);
+
+        // Render submenu if it exists
+        if (menu.submenu) {
+            const submenuContainer = document.createElement('div');
+            submenuContainer.className = 'menu-container menu-submenu';
+            const submenuTitle = document.createElement('h3');
+            submenuTitle.textContent = menu.submenu.title;
+            submenuContainer.appendChild(submenuTitle);
+            menu.submenu.options.forEach((option, index) => {
+                const optionElement = document.createElement('div');
+                optionElement.className = 'menu-option';
+                if (index === menu.submenuSelectedIndex && menu.activeMenu === 'submenu') {
+                    optionElement.classList.add('selected');
+                }
+                optionElement.textContent = option.label;
+                submenuContainer.appendChild(optionElement);
+            });
+            containersWrapper.appendChild(submenuContainer);
+        }
+
+        menuWrapper.appendChild(containersWrapper);
+        container.appendChild(menuWrapper);
+    }
+
+    #renderModuleInfo(moduleEntity) {
+        if (!moduleEntity || !moduleEntity.id) return null;
+
+        const world = this.world || (typeof game !== 'undefined' ? game.world : null);
+        if (!world) return null;
+
+        const entity = world.getEntity(moduleEntity.id);
+        if (!entity) return null;
+
+        const itemComponent = entity.getComponent('ItemComponent');
+        const statModifier = entity.getComponent('StatModifierComponent');
+
+        if (!itemComponent) return null;
+
+        const infoBox = document.createElement('div');
+        infoBox.className = 'module-info-box';
+
+        // Module name
+        const title = document.createElement('h4');
+        title.textContent = itemComponent.name;
+        infoBox.appendChild(title);
+
+        // Description
+        if (itemComponent.description) {
+            const desc = document.createElement('div');
+            desc.className = 'module-info-description';
+            desc.textContent = itemComponent.description;
+            infoBox.appendChild(desc);
+        }
+
+        // Stats
+        if (statModifier && Object.keys(statModifier.modifiers).length > 0) {
+            const statsContainer = document.createElement('div');
+            statsContainer.className = 'module-info-stats';
+
+            for (const [stat, value] of Object.entries(statModifier.modifiers)) {
+                const statElement = document.createElement('div');
+                statElement.className = 'module-info-stat';
+                const sign = value >= 0 ? '+' : '';
+                statElement.textContent = `${stat}: ${sign}${value}`;
+                statsContainer.appendChild(statElement);
+            }
+
+            infoBox.appendChild(statsContainer);
+        }
+
+        return infoBox;
     }
 
     #renderItemNames(world, overlayContainer) {
         const TILE_SIZE = 20; // Should match style.css
         const entities = world.query(['PositionComponent', 'NameComponent']);
+        const inputSystem = world.systems.find(s => s instanceof InputSystem);
+
+        // Separate hovered and non-hovered entities
+        const hoveredEntities = [];
+        const normalEntities = [];
 
         for (const entity of entities) {
             // Only show names for items and non-door interactables
@@ -99,17 +205,50 @@ class RenderSystem extends System {
 
             if (isItem || (isInteractable && !isDoor)) {
                 const pos = entity.getComponent('PositionComponent');
-                const name = entity.getComponent('NameComponent').name;
 
-                const nameElement = document.createElement('div');
-                nameElement.className = 'item-name-tag';
-                nameElement.textContent = name;
+                // Check if this entity is at the hovered tile position
+                const isHovered = inputSystem &&
+                                  inputSystem.hoveredTileX === pos.x &&
+                                  inputSystem.hoveredTileY === pos.y;
 
-                nameElement.style.left = `${pos.x * TILE_SIZE + (TILE_SIZE / 2)}px`;
-                nameElement.style.top = `${(pos.y * TILE_SIZE) - 16}px`;
-
-                overlayContainer.appendChild(nameElement);
+                if (isHovered) {
+                    hoveredEntities.push(entity);
+                } else {
+                    normalEntities.push(entity);
+                }
             }
+        }
+
+        // Render normal entities first
+        for (const entity of normalEntities) {
+            const pos = entity.getComponent('PositionComponent');
+            const name = entity.getComponent('NameComponent').name;
+
+            const nameElement = document.createElement('div');
+            nameElement.className = 'item-name-tag';
+            nameElement.textContent = name;
+
+            nameElement.style.left = `${pos.x * TILE_SIZE + (TILE_SIZE / 2)}px`;
+            nameElement.style.top = `${(pos.y * TILE_SIZE) - 16}px`;
+            nameElement.style.zIndex = '10';
+
+            overlayContainer.appendChild(nameElement);
+        }
+
+        // Render hovered entities last (on top)
+        for (const entity of hoveredEntities) {
+            const pos = entity.getComponent('PositionComponent');
+            const name = entity.getComponent('NameComponent').name;
+
+            const nameElement = document.createElement('div');
+            nameElement.className = 'item-name-tag item-name-tag-hovered';
+            nameElement.textContent = name;
+
+            nameElement.style.left = `${pos.x * TILE_SIZE + (TILE_SIZE / 2)}px`;
+            nameElement.style.top = `${(pos.y * TILE_SIZE) - 16}px`;
+            nameElement.style.zIndex = '100'; // Higher z-index for hovered items
+
+            overlayContainer.appendChild(nameElement);
         }
     }
 }
@@ -119,6 +258,10 @@ class InputSystem extends System {
         super();
         this.keys = new Set();
         this.qPressed = false; // Track q key state
+        this.mouseX = null; // Mouse position in pixels
+        this.mouseY = null;
+        this.hoveredTileX = null; // Hovered tile coordinates
+        this.hoveredTileY = null;
 
         document.addEventListener('keydown', (e) => {
             if (e.key.toLowerCase() === 'q') {
@@ -132,6 +275,26 @@ class InputSystem extends System {
                 this.qPressed = false;
             }
             this.keys.delete(e.key.toLowerCase()); // Ensure key is removed on keyup
+        });
+
+        // Track mouse position over game container
+        const gameContainer = document.getElementById('game-container');
+        gameContainer.addEventListener('mousemove', (e) => {
+            const rect = gameContainer.getBoundingClientRect();
+            this.mouseX = e.clientX - rect.left;
+            this.mouseY = e.clientY - rect.top;
+
+            // Calculate which tile is hovered (20px per tile from style.css)
+            const TILE_SIZE = 20;
+            this.hoveredTileX = Math.floor(this.mouseX / TILE_SIZE);
+            this.hoveredTileY = Math.floor(this.mouseY / TILE_SIZE);
+        });
+
+        gameContainer.addEventListener('mouseleave', () => {
+            this.mouseX = null;
+            this.mouseY = null;
+            this.hoveredTileX = null;
+            this.hoveredTileY = null;
         });
     }
 
@@ -147,22 +310,54 @@ class InputSystem extends System {
             const menu = menuEntity.getComponent('MenuComponent');
             switch (key) {
                 case 'w':
-                    menu.selectedIndex = (menu.selectedIndex > 0) ? menu.selectedIndex - 1 : menu.options.length - 1;
+                    if (menu.activeMenu === 'main') {
+                        menu.selectedIndex = (menu.selectedIndex > 0) ? menu.selectedIndex - 1 : menu.options.length - 1;
+                    } else if (menu.submenu) {
+                        menu.submenuSelectedIndex = (menu.submenuSelectedIndex > 0) ? menu.submenuSelectedIndex - 1 : menu.submenu.options.length - 1;
+                    }
                     break;
                 case 's':
-                    menu.selectedIndex = (menu.selectedIndex < menu.options.length - 1) ? menu.selectedIndex + 1 : 0;
+                    if (menu.activeMenu === 'main') {
+                        menu.selectedIndex = (menu.selectedIndex < menu.options.length - 1) ? menu.selectedIndex + 1 : 0;
+                    } else if (menu.submenu) {
+                        menu.submenuSelectedIndex = (menu.submenuSelectedIndex < menu.submenu.options.length - 1) ? menu.submenuSelectedIndex + 1 : 0;
+                    }
+                    break;
+                case 'a':
+                    if (menu.submenu) {
+                        menu.activeMenu = 'main';
+                    }
+                    break;
+                case 'd':
+                    if (menu.submenu) {
+                        menu.activeMenu = 'submenu';
+                    }
                     break;
                 case ' ':
-                    const selectedOption = menu.options[menu.selectedIndex];
-                    // If actionArgs exist, pass them, otherwise pass menu.interactable
-                    const actionTarget = selectedOption.actionArgs || menu.interactable;
-                    const action = MENU_ACTIONS[selectedOption.action];
-                    if (action) {
-                        action(world.game, actionTarget);
+                    let selectedOption;
+                    if (menu.activeMenu === 'main') {
+                        selectedOption = menu.options[menu.selectedIndex];
+                    } else if (menu.submenu) {
+                        selectedOption = menu.submenu.options[menu.submenuSelectedIndex];
+                    }
+
+                    if (selectedOption) {
+                        // If actionArgs exist, pass them, otherwise pass menu.interactable
+                        const actionTarget = selectedOption.actionArgs || menu.interactable;
+                        const action = MENU_ACTIONS[selectedOption.action];
+                        if (action) {
+                            action(world.game, actionTarget);
+                        }
                     }
                     break;
                 case 'escape':
-                    MENU_ACTIONS['close_menu'](world.game);
+                    if (menu.submenu && menu.activeMenu === 'submenu') {
+                        // Close submenu, go back to main
+                        menu.submenu = null;
+                        menu.activeMenu = 'main';
+                    } else {
+                        MENU_ACTIONS['close_menu'](world.game);
+                    }
                     break;
             }
         } else { // Process player input
@@ -181,6 +376,7 @@ class InputSystem extends System {
                 case 'd': action = new ActionComponent('move', { dx: 1, dy: 0 }); break;
                 case ' ': action = new ActionComponent('activate'); break;
                 case 'i': SCRIPT_REGISTRY['openInventoryMenu'](world.game, player); break; // Open inventory
+                case 'e': MENU_ACTIONS['view_equipment'](world.game); break; // Open equipment menu
             }
 
             if (action) {
@@ -268,17 +464,43 @@ class HudSystem extends System {
 
         const stats = player.getComponent('CreatureStatsComponent');
         const name = player.getComponent('NameComponent');
+        const inventory = player.getComponent('InventoryComponent');
+
+        // Get equipment modifiers
+        const modifiers = getEquipmentModifiers(world, player);
+
+        // Apply modifiers to displayed stats
+        const displayHunger = Math.min(100, stats.hunger + (modifiers.hunger || 0));
+        const displayHead = Math.min(100, stats.head + (modifiers.head || 0));
+        const displayChest = Math.min(100, stats.chest + (modifiers.chest || 0));
+        const displayLeftArm = Math.min(100, stats.left_arm + (modifiers.left_arm || 0));
+        const displayRightArm = Math.min(100, stats.right_arm + (modifiers.right_arm || 0));
+        const displayLeftLeg = Math.min(100, stats.left_leg + (modifiers.left_leg || 0));
+        const displayRightLeg = Math.min(100, stats.right_leg + (modifiers.right_leg || 0));
 
         document.getElementById('hud-title').textContent = name.name;
-        document.getElementById('bar-hunger').querySelector('.bar-fill').style.width = `${stats.hunger}%`;
+        document.getElementById('bar-hunger').querySelector('.bar-fill').style.width = `${displayHunger}%`;
         document.getElementById('bar-rest').style.width = `${stats.rest}%`;
         document.getElementById('bar-stress').style.width = `${stats.stress}%`;
-        document.getElementById('hud-head').textContent = `Head: ${stats.head}%`;
-        document.getElementById('hud-chest').textContent = `Chest: ${stats.chest}%`;
-        document.getElementById('hud-left-arm').textContent = `L-Arm: ${stats.left_arm}%`;
-        document.getElementById('hud-right-arm').textContent = `R-Arm: ${stats.right_arm}%`;
-        document.getElementById('hud-left-leg').textContent = `L-Leg: ${stats.left_leg}%`;
-        document.getElementById('hud-right-leg').textContent = `R-Leg: ${stats.right_leg}%`;
+
+        // Display stats with modifiers (show modifier if non-zero)
+        document.getElementById('hud-head').textContent = `Head: ${displayHead}%${modifiers.head ? ` (+${modifiers.head})` : ''}`;
+        document.getElementById('hud-chest').textContent = `Chest: ${displayChest}%${modifiers.chest ? ` (+${modifiers.chest})` : ''}`;
+        document.getElementById('hud-left-arm').textContent = `L-Arm: ${displayLeftArm}%${modifiers.left_arm ? ` (+${modifiers.left_arm})` : ''}`;
+        document.getElementById('hud-right-arm').textContent = `R-Arm: ${displayRightArm}%${modifiers.right_arm ? ` (+${modifiers.right_arm})` : ''}`;
+        document.getElementById('hud-left-leg').textContent = `L-Leg: ${displayLeftLeg}%${modifiers.left_leg ? ` (+${modifiers.left_leg})` : ''}`;
+        document.getElementById('hud-right-leg').textContent = `R-Leg: ${displayRightLeg}%${modifiers.right_leg ? ` (+${modifiers.right_leg})` : ''}`;
+
+        // Display inventory weight and slots
+        if (inventory) {
+            const currentWeight = inventory.getTotalWeight(world);
+            const maxWeight = inventory.maxWeight;
+            const usedSlots = inventory.items.size;
+            const maxSlots = inventory.capacity;
+
+            document.getElementById('hud-weight').textContent = `Weight: ${currentWeight}g/${maxWeight}g`;
+            document.getElementById('hud-inventory').textContent = `Slots: ${usedSlots}/${maxSlots}`;
+        }
     }
 }
 
