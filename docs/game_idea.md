@@ -41,5 +41,6 @@ Scavenger is a rogue-like game focused on exploration, survival, and resource ma
 The inventory system combines both slot-based and weight-based limitations to simulate realistic carrying capacity.
 
 *   **Item Weight:** All items will have a weight, measured in grams (g).
-*   **Inventory Slots:** The player starts with 4 inventory slots. Backpacks and other gear can increase the number of available slots.
+*   **Inventory Slots:** The player starts with 4 inventory slots (fractional slots supported). Backpacks and other gear can increase the number of available slots. Modules/parts consume 0.5 slots, allowing for more efficient storage of modular components.
 *   **Max Weight Capacity:** The base maximum weight the character can carry is 3kg (3000g). This capacity can be increased through character upgrades or specific equipment.
+*   **Equipment Weight Bonus:** Equipped items weigh half as much as carried items - it's easier to wear armor than carry it.

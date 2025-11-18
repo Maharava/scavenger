@@ -112,12 +112,43 @@ Adds a `MenuComponent` to the player entity, causing a menu with a title and a l
 
 ## Menu Actions
 
-The actions for the menu options are defined in the `MENU_ACTIONS` object in `game.js`. These actions now manipulate `MenuComponent`s on entities rather than a global `Menu` object.
+The actions for the menu options are defined in the `MENU_ACTIONS` object in `game.js`. These actions manipulate `MenuComponent`s on entities.
+
+### Core Menu Actions
 
 | Action         | Description                                                                 |
 |----------------|-----------------------------------------------------------------------------|
 | `close_menu`   | Closes the currently open menu by removing its `MenuComponent`.             |
+| `close_submenu`| Closes the current submenu level and returns to the previous menu level.    |
 | `open_door`    | Replaces the activated interactable with the 'DOOR_OPEN' entity.            |
 | `close_door`   | Replaces the activated interactable with the 'DOOR_CLOSED' entity.          |
-| `use_item`     | Consumes an item from the player's inventory, applying its effects (e.g., RESTORE_HUNGER). |
+
+### Inventory Actions
+
+| Action              | Description                                                                 |
+|---------------------|-----------------------------------------------------------------------------|
+| `use_item`          | Consumes an item from the player's inventory, applying its effects (e.g., RESTORE_HUNGER). |
+| `equip_item`        | Equips an item from inventory to the appropriate equipment slot.           |
+| `unequip_item`      | Unequips an item from inventory menu and returns it to inventory.          |
+| `show_item_submenu` | Opens a submenu for an inventory item with options like Use, Equip, Inspect. |
+| `inspect_item`      | Displays detailed information about an item in a details pane.              |
+
+### Equipment Menu Actions
+
+| Action                      | Description                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------|
+| `view_equipment`            | Opens the equipment menu showing all equipped items.                        |
+| `equipment_submenu`         | Opens submenu for an equipped item with Inspect, Unequip, and Manage Modules options. |
+| `unequip_equipped_item`     | Unequips an item from the equipment menu and returns it to inventory.      |
+
+### Workbench/Module Actions
+
+| Action                      | Description                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------|
+| `show_equipment_slots`      | Shows all attachment slots for a piece of modular equipment.                |
+| `show_slot_mods`            | Shows compatible modules for a specific equipment slot.                     |
+| `swap_module`               | Swaps or removes a module from an equipment slot.                           |
+| `update_workbench_details`  | Updates the details pane when navigating modules in the workbench.          |
+
+See `module_system.md` for detailed information on the workbench and module swapping system.
 

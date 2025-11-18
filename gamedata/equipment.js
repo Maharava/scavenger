@@ -8,9 +8,12 @@ const EQUIPMENT_DATA = [
         "colour": "#888",
         "weight": 100,
         "part_type": "barrel",
-        "description": "A short barrel for a pistol.",
+        "description": "A short barrel for close quarters.",
         "modifiers": {
-            "hunger": 5 // Test stat modifier
+            "damageAmount": 0,
+            "penetration": 0.9, // Slightly reduced penetration
+            "range": 3,
+            "accuracy": -5 // Less accurate
         }
     },
     {
@@ -20,8 +23,11 @@ const EQUIPMENT_DATA = [
         "colour": "#333",
         "weight": 30,
         "part_type": "grip",
-        "description": "A comfortable rubber grip."
-        // No modifiers - just a basic grip
+        "description": "A comfortable rubber grip with good recoil absorption.",
+        "modifiers": {
+            "accuracy": 5,
+            "comfortPenalty": -1 // Comfortable, only -1 per shot
+        }
     },
     {
         "id": "WOODEN_GRIP",
@@ -30,9 +36,10 @@ const EQUIPMENT_DATA = [
         "colour": "#964",
         "weight": 40,
         "part_type": "grip",
-        "description": "A solid wooden grip.",
+        "description": "A solid wooden grip, traditional and reliable.",
         "modifiers": {
-            "hunger": 3 // Test stat modifier
+            "accuracy": 0,
+            "comfortPenalty": -2 // Basic comfort penalty
         }
     },
     {
@@ -42,33 +49,37 @@ const EQUIPMENT_DATA = [
         "colour": "#aaa",
         "weight": 80,
         "part_type": "chamber",
-        "description": "A standard pistol chamber.",
+        "description": "A standard pistol chamber firing 9mm rounds.",
         "modifiers": {
-            "head": 10 // Test stat modifier
+            "damageType": "kinetic",
+            "damageAmount": 15,
+            "penetration": 1.0
         }
     },
     {
-        "id": "RANGE_FINDER",
-        "name": "Range Finder",
-        "char": "r",
-        "colour": "#0f0",
-        "weight": 50,
-        "part_type": "mod",
-        "description": "A small range-finding device.",
+        "id": "PISTOL_LASER_SIGHT",
+        "name": "Pistol Laser Sight",
+        "char": "l",
+        "colour": "#f00",
+        "weight": 35,
+        "part_type": "mod_pistol",
+        "description": "A compact laser sight for pistols, improves accuracy.",
         "modifiers": {
-            "hunger": 2 // Test stat modifier
+            "accuracy": 12
         }
     },
     {
-        "id": "GRIP_WARMER",
-        "name": "Grip Warmer",
-        "char": "w",
-        "colour": "#f90",
-        "weight": 25,
-        "part_type": "mod",
-        "description": "Keeps your grip warm in cold environments.",
+        "id": "PISTOL_SUPPRESSOR",
+        "name": "Pistol Suppressor",
+        "char": "s",
+        "colour": "#555",
+        "weight": 60,
+        "part_type": "mod_pistol",
+        "description": "Reduces noise and slightly improves accuracy.",
         "modifiers": {
-            "hunger": 1 // Test stat modifier
+            "accuracy": 5,
+            "damageAmount": -1,
+            "comfortPenalty": 1 // Less jarring to fire
         }
     },
 
@@ -86,12 +97,73 @@ const EQUIPMENT_DATA = [
             "barrel": { "accepted_type": "barrel", "entity_id": null, "required": true },
             "grip": { "accepted_type": "grip", "entity_id": null, "required": true },
             "chamber": { "accepted_type": "chamber", "entity_id": null, "required": true },
-            "mod1": { "accepted_type": "mod", "entity_id": null, "required": false },
-            "mod2": { "accepted_type": "mod", "entity_id": null, "required": false }
+            "mod1": { "accepted_type": "mod_pistol", "entity_id": null, "required": false },
+            "mod2": { "accepted_type": "mod_pistol", "entity_id": null, "required": false }
         }
     },
 
-    // === ARMOR PARTS ===
+    // === RIFLE PARTS ===
+    {
+        "id": "RIFLE_SCOPE",
+        "name": "Rifle Scope",
+        "char": "o",
+        "colour": "#0af",
+        "weight": 120,
+        "part_type": "mod_rifle",
+        "description": "A precision scope for long-range shooting.",
+        "modifiers": {
+            "accuracy": 20,
+            "range": 5
+        }
+    },
+    {
+        "id": "RIFLE_BIPOD",
+        "name": "Rifle Bipod",
+        "char": "t",
+        "colour": "#888",
+        "weight": 80,
+        "part_type": "mod_rifle",
+        "description": "A bipod for stability when firing from prone position.",
+        "modifiers": {
+            "accuracy": 10,
+            "comfortPenalty": 2 // Makes firing more comfortable
+        }
+    },
+    {
+        "id": "RIFLE_SUPPRESSOR",
+        "name": "Rifle Suppressor",
+        "char": "s",
+        "colour": "#444",
+        "weight": 150,
+        "part_type": "mod_rifle",
+        "description": "A large suppressor for rifles, reduces noise significantly.",
+        "modifiers": {
+            "accuracy": 3,
+            "damageAmount": -2,
+            "comfortPenalty": 3 // Much less jarring
+        }
+    },
+
+    // === RIFLE CONTAINER ===
+    {
+        "id": "WORN_RIFLE",
+        "name": "Worn Rifle",
+        "char": "R",
+        "colour": "#964",
+        "weight": 800,
+        "equipment_slot": "hand",
+        "gun_type": "rifle",
+        "description": "A worn rifle. Needs parts to function. More powerful than a pistol.",
+        "attachment_slots": {
+            "barrel": { "accepted_type": "barrel", "entity_id": null, "required": true },
+            "grip": { "accepted_type": "grip", "entity_id": null, "required": true },
+            "chamber": { "accepted_type": "chamber", "entity_id": null, "required": true },
+            "mod1": { "accepted_type": "mod_rifle", "entity_id": null, "required": false },
+            "mod2": { "accepted_type": "mod_rifle", "entity_id": null, "required": false }
+        }
+    },
+
+    // === armour PARTS ===
     {
         "id": "CLOTH_UNDERLAY",
         "name": "Cloth Underlay",
@@ -99,7 +171,7 @@ const EQUIPMENT_DATA = [
         "colour": "#ddd",
         "weight": 120,
         "part_type": "underlay",
-        "description": "A soft cloth underlay for armor."
+        "description": "A soft cloth underlay for armour."
         // No modifiers - just a basic part
     },
     {
@@ -154,29 +226,29 @@ const EQUIPMENT_DATA = [
         "char": "s",
         "colour": "#0af",
         "weight": 150,
-        "part_type": "mod",
+        "part_type": "mod_armour",
         "description": "Keeps you cool in hot environments.",
         "modifiers": {
             "hunger": 3 // Test stat modifier
         }
     },
 
-    // === ARMOR CONTAINER ===
+    // === armour CONTAINER ===
     {
-        "id": "SCRAP_ARMOR",
-        "name": "Scrap Armor",
+        "id": "SCRAP_ARMOUR",
+        "name": "Scrap Armour",
         "char": "A",
         "colour": "#963",
         "weight": 600,
         "equipment_slot": "body",
-        "armor_type": "body_armor",
-        "description": "Armor cobbled together from scrap. Needs parts to function.",
+        "armour_type": "body_armour",
+        "description": "armour cobbled together from scrap. Needs parts to function.",
         "attachment_slots": {
             "underlay": { "accepted_type": "underlay", "entity_id": null, "required": true },
             "material": { "accepted_type": "material", "entity_id": null, "required": true },
             "overlay": { "accepted_type": "overlay", "entity_id": null, "required": true },
-            "mod1": { "accepted_type": "mod", "entity_id": null, "required": false },
-            "mod2": { "accepted_type": "mod", "entity_id": null, "required": false }
+            "mod1": { "accepted_type": "mod_armour", "entity_id": null, "required": false },
+            "mod2": { "accepted_type": "mod_armour", "entity_id": null, "required": false }
         }
     },
 
@@ -188,7 +260,11 @@ const EQUIPMENT_DATA = [
         "colour": "#999",
         "weight": 35,
         "part_type": "grip",
-        "description": "A standard grip with no special features."
+        "description": "A standard grip with no special features.",
+        "modifiers": {
+            "accuracy": 0,
+            "comfortPenalty": -2 // Standard comfort penalty
+        }
     },
     {
         "id": "COMPACT_GRIP",
@@ -197,7 +273,11 @@ const EQUIPMENT_DATA = [
         "colour": "#888",
         "weight": 25,
         "part_type": "grip",
-        "description": "A smaller, lighter grip for better portability."
+        "description": "A smaller, lighter grip for better portability.",
+        "modifiers": {
+            "accuracy": -5, // Less stable
+            "comfortPenalty": -3 // More uncomfortable due to small size
+        }
     },
     {
         "id": "ERGONOMIC_GRIP",
@@ -206,7 +286,11 @@ const EQUIPMENT_DATA = [
         "colour": "#777",
         "weight": 40,
         "part_type": "grip",
-        "description": "A comfortable grip designed for extended use."
+        "description": "A comfortable grip designed for extended use.",
+        "modifiers": {
+            "accuracy": 3,
+            "comfortPenalty": 0 // Very comfortable, no penalty
+        }
     },
     {
         "id": "TEXTURED_GRIP",
@@ -215,7 +299,11 @@ const EQUIPMENT_DATA = [
         "colour": "#666",
         "weight": 38,
         "part_type": "grip",
-        "description": "A grip with textured surface for improved handling."
+        "description": "A grip with textured surface for improved handling.",
+        "modifiers": {
+            "accuracy": 8, // Better control
+            "comfortPenalty": -1 // Slightly harsh on hands
+        }
     },
 
     // === GENERIC GUN CHAMBERS ===
@@ -226,7 +314,12 @@ const EQUIPMENT_DATA = [
         "colour": "#999",
         "weight": 75,
         "part_type": "chamber",
-        "description": "A standard chamber with no special features."
+        "description": "A standard chamber firing basic 9mm rounds.",
+        "modifiers": {
+            "damageType": "kinetic",
+            "damageAmount": 12,
+            "penetration": 1.0
+        }
     },
     {
         "id": "REINFORCED_CHAMBER",
@@ -235,7 +328,12 @@ const EQUIPMENT_DATA = [
         "colour": "#888",
         "weight": 90,
         "part_type": "chamber",
-        "description": "A reinforced chamber built for durability."
+        "description": "A reinforced chamber firing high-pressure rounds.",
+        "modifiers": {
+            "damageType": "kinetic",
+            "damageAmount": 18,
+            "penetration": 1.2 // Better penetration
+        }
     },
     {
         "id": "LIGHTWEIGHT_CHAMBER",
@@ -244,7 +342,12 @@ const EQUIPMENT_DATA = [
         "colour": "#777",
         "weight": 60,
         "part_type": "chamber",
-        "description": "A lighter chamber made from advanced materials."
+        "description": "A lighter chamber firing subsonic rounds.",
+        "modifiers": {
+            "damageType": "kinetic",
+            "damageAmount": 10,
+            "penetration": 0.8 // Lower penetration
+        }
     },
     {
         "id": "PRECISION_CHAMBER",
@@ -253,7 +356,12 @@ const EQUIPMENT_DATA = [
         "colour": "#666",
         "weight": 85,
         "part_type": "chamber",
-        "description": "A precisely machined chamber for consistent performance."
+        "description": "A precisely machined chamber for match-grade rounds.",
+        "modifiers": {
+            "damageType": "kinetic",
+            "damageAmount": 14,
+            "penetration": 1.1 // Slightly better penetration
+        }
     },
 
     // === GENERIC GUN BARRELS ===
@@ -264,7 +372,13 @@ const EQUIPMENT_DATA = [
         "colour": "#999",
         "weight": 95,
         "part_type": "barrel",
-        "description": "A standard barrel with no special features."
+        "description": "A standard barrel with balanced performance.",
+        "modifiers": {
+            "damageAmount": 0,
+            "penetration": 1.0,
+            "range": 5,
+            "accuracy": 0
+        }
     },
     {
         "id": "LONG_BARREL",
@@ -273,7 +387,13 @@ const EQUIPMENT_DATA = [
         "colour": "#888",
         "weight": 120,
         "part_type": "barrel",
-        "description": "An extended barrel for improved range."
+        "description": "An extended barrel for improved range and accuracy.",
+        "modifiers": {
+            "damageAmount": 2,
+            "penetration": 1.1,
+            "range": 8,
+            "accuracy": 10
+        }
     },
     {
         "id": "COMPACT_BARREL",
@@ -282,7 +402,13 @@ const EQUIPMENT_DATA = [
         "colour": "#777",
         "weight": 75,
         "part_type": "barrel",
-        "description": "A shorter barrel for better maneuverability."
+        "description": "A shorter barrel for better maneuverability.",
+        "modifiers": {
+            "damageAmount": -2,
+            "penetration": 0.85,
+            "range": 3,
+            "accuracy": -8
+        }
     },
     {
         "id": "RIFLED_BARREL",
@@ -291,10 +417,17 @@ const EQUIPMENT_DATA = [
         "colour": "#666",
         "weight": 105,
         "part_type": "barrel",
-        "description": "A barrel with rifling for improved accuracy."
+        "description": "A barrel with rifling for improved accuracy.",
+        "modifiers": {
+            "damageAmount": 1,
+            "penetration": 1.05,
+            "range": 6,
+            "accuracy": 15
+        }
     },
 
-    // === GENERIC ARMOR UNDERLAYS ===
+    // === GENERIC armour UNDERLAYS ===
+    // Underlays focus on temperature regulation
     {
         "id": "BASIC_UNDERLAY",
         "name": "Basic Underlay",
@@ -302,7 +435,11 @@ const EQUIPMENT_DATA = [
         "colour": "#999",
         "weight": 100,
         "part_type": "underlay",
-        "description": "A standard underlay with no special features."
+        "description": "A standard underlay with minimal temperature protection.",
+        "modifiers": {
+            "tempMin": 2,
+            "tempMax": 2
+        }
     },
     {
         "id": "PADDED_UNDERLAY",
@@ -311,7 +448,11 @@ const EQUIPMENT_DATA = [
         "colour": "#888",
         "weight": 140,
         "part_type": "underlay",
-        "description": "A padded underlay for additional comfort."
+        "description": "A padded underlay for warmth in cold environments.",
+        "modifiers": {
+            "tempMin": 8,
+            "tempMax": 3
+        }
     },
     {
         "id": "MESH_UNDERLAY",
@@ -320,7 +461,11 @@ const EQUIPMENT_DATA = [
         "colour": "#777",
         "weight": 70,
         "part_type": "underlay",
-        "description": "A breathable mesh underlay for ventilation."
+        "description": "A breathable mesh underlay for hot environments.",
+        "modifiers": {
+            "tempMin": 1,
+            "tempMax": 10
+        }
     },
     {
         "id": "THERMAL_UNDERLAY",
@@ -329,10 +474,15 @@ const EQUIPMENT_DATA = [
         "colour": "#666",
         "weight": 110,
         "part_type": "underlay",
-        "description": "An insulated underlay for temperature regulation."
+        "description": "An insulated underlay for extreme cold protection.",
+        "modifiers": {
+            "tempMin": 15,
+            "tempMax": 5
+        }
     },
 
-    // === GENERIC ARMOR MATERIALS ===
+    // === GENERIC armour MATERIALS ===
+    // Materials set durability and provide balanced damage/temp protection
     {
         "id": "BASIC_MATERIAL",
         "name": "Basic Material",
@@ -340,7 +490,14 @@ const EQUIPMENT_DATA = [
         "colour": "#999",
         "weight": 600,
         "part_type": "material",
-        "description": "A standard material with no special features."
+        "description": "A standard material with basic protection.",
+        "modifiers": {
+            "maxDurability": 100,
+            "kinetic": 10,
+            "energy": 5,
+            "tempMin": 3,
+            "tempMax": 3
+        }
     },
     {
         "id": "COMPOSITE_MATERIAL",
@@ -349,7 +506,15 @@ const EQUIPMENT_DATA = [
         "colour": "#888",
         "weight": 550,
         "part_type": "material",
-        "description": "A composite material balancing protection and weight."
+        "description": "A composite material balancing protection and weight.",
+        "modifiers": {
+            "maxDurability": 150,
+            "kinetic": 15,
+            "energy": 15,
+            "toxin": 5,
+            "tempMin": 4,
+            "tempMax": 4
+        }
     },
     {
         "id": "CERAMIC_MATERIAL",
@@ -358,7 +523,14 @@ const EQUIPMENT_DATA = [
         "colour": "#777",
         "weight": 700,
         "part_type": "material",
-        "description": "A ceramic material offering solid protection."
+        "description": "A ceramic material offering solid kinetic protection.",
+        "modifiers": {
+            "maxDurability": 120,
+            "kinetic": 25,
+            "energy": 10,
+            "tempMin": 2,
+            "tempMax": 2
+        }
     },
     {
         "id": "POLYMER_MATERIAL",
@@ -367,10 +539,19 @@ const EQUIPMENT_DATA = [
         "colour": "#666",
         "weight": 450,
         "part_type": "material",
-        "description": "A lightweight polymer material."
+        "description": "A lightweight polymer material with good energy resistance.",
+        "modifiers": {
+            "maxDurability": 180,
+            "kinetic": 8,
+            "energy": 20,
+            "radiation": 10,
+            "tempMin": 5,
+            "tempMax": 5
+        }
     },
 
-    // === GENERIC ARMOR OVERLAYS ===
+    // === GENERIC armour OVERLAYS ===
+    // Overlays focus on damage resistance
     {
         "id": "BASIC_OVERLAY",
         "name": "Basic Overlay",
@@ -378,7 +559,13 @@ const EQUIPMENT_DATA = [
         "colour": "#999",
         "weight": 180,
         "part_type": "overlay",
-        "description": "A standard overlay with no special features."
+        "description": "A standard overlay with basic damage protection.",
+        "modifiers": {
+            "kinetic": 5,
+            "energy": 5,
+            "tempMin": 1,
+            "tempMax": 1
+        }
     },
     {
         "id": "REFLECTIVE_OVERLAY",
@@ -387,7 +574,12 @@ const EQUIPMENT_DATA = [
         "colour": "#888",
         "weight": 160,
         "part_type": "overlay",
-        "description": "A reflective overlay for improved visibility."
+        "description": "A reflective overlay that deflects energy weapons.",
+        "modifiers": {
+            "energy": 20,
+            "radiation": 15,
+            "tempMax": 3
+        }
     },
     {
         "id": "ABLATIVE_OVERLAY",
@@ -396,7 +588,11 @@ const EQUIPMENT_DATA = [
         "colour": "#777",
         "weight": 220,
         "part_type": "overlay",
-        "description": "An ablative overlay designed to dissipate damage."
+        "description": "An ablative overlay designed to dissipate kinetic damage.",
+        "modifiers": {
+            "kinetic": 25,
+            "tempMin": 2
+        }
     },
     {
         "id": "CAMOUFLAGE_OVERLAY",
@@ -405,6 +601,12 @@ const EQUIPMENT_DATA = [
         "colour": "#666",
         "weight": 170,
         "part_type": "overlay",
-        "description": "A camouflage overlay for concealment."
+        "description": "A lightweight overlay for concealment.",
+        "modifiers": {
+            "kinetic": 3,
+            "toxin": 10,
+            "tempMin": 2,
+            "tempMax": 2
+        }
     }
 ];

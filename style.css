@@ -127,10 +127,11 @@ body {
 }
 
 #hud-bars-container {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 20px 20px;
     gap: 10px;
     margin-bottom: 15px;
-    height: 20px;
 }
 
 .bar {
@@ -154,6 +155,7 @@ body {
 #bar-hunger .bar-fill { background-color: orange; }
 #bar-rest .bar-fill { background-color: #888; } /* Grey */
 #bar-stress .bar-fill { background-color: #0f0; } /* Green */
+#bar-comfort .bar-fill { background-color: #00f; } /* Blue */
 
 .bar-letter {
     color: white;
@@ -168,10 +170,6 @@ body {
     color: #0ff; /* Cyan text for area info */
 }
 
-#area-air {
-    margin-left: 20px; /* Add space between temp and air */
-}
-
 .game-message {
     position: absolute;
     background-color: black;
@@ -184,60 +182,57 @@ body {
 }
 
 .menu-wrapper {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     z-index: 20;
-    align-items: center;
+    position: relative; /* Make it a positioning context for its children if needed */
+    width: 100%; /* Ensure it spans the width if it's a parent */
+    height: 100%; /* Ensure it spans the height if it's a parent */
+    pointer-events: none; /* Allow clicks to pass through if it's just a wrapper */
 }
 
-.module-info-box {
+/* Details Pane */
+.details-pane {
     background-color: black;
-    border: 2px solid white;
+    border: 2px solid #0ff;
     padding: 10px 15px;
     min-width: 300px;
     max-width: 500px;
     color: #eee;
     font-size: 14px;
+    position: absolute;
+    pointer-events: auto;
 }
 
-.module-info-box h4 {
+.details-pane h4 {
     margin: 0 0 8px 0;
-    color: #ff0;
+    color: #0ff;
     font-size: 16px;
 }
 
-.module-info-description {
-    margin-bottom: 8px;
-    color: #aaa;
+.details-line {
+    margin: 4px 0;
+    color: #ddd;
 }
 
-.module-info-stats {
-    color: #0f0;
-}
-
-.module-info-stat {
-    margin: 3px 0;
-}
-
-.menu-containers-wrapper {
-    display: flex;
-    gap: 10px;
-}
-
+/* Menu Containers */
 .menu-container {
     background-color: black;
-    border: 1px solid white;
+    border: 2px solid white;
     padding: 20px;
     min-width: 200px;
+    pointer-events: auto;
+    position: absolute;
 }
 
-.menu-submenu {
+.menu-main {
+    border-color: white;
+}
+
+.menu-submenu1 {
     border-color: #ff0;
+}
+
+.menu-submenu2 {
+    border-color: #0f0;
 }
 
 .menu-container h3 {
@@ -297,6 +292,12 @@ body {
 #hud-stats > div {
     color: #0f0; /* Green text */
     font-size: 80%;
+}
+
+#hud-inventory-weight {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
 }
 
 

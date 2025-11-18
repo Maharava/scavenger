@@ -5,6 +5,7 @@ class RenderSystem extends System {
         super();
         this.messageOverlay = document.getElementById('message-overlay-container');
         this.itemNameOverlay = document.getElementById('item-name-overlay-container'); // New overlay for item names
+        this.menuOverlay = document.getElementById('menu-overlay-container'); // New overlay for menus
     }
 
     update(world) {
@@ -61,6 +62,9 @@ class RenderSystem extends System {
         const menuEntity = world.query(['MenuComponent'])[0];
         if (menuEntity) {
             this.#renderMenu(container, menuEntity.getComponent('MenuComponent'));
+        } else {
+            // Clear menu overlay when no menu is active
+            this.menuOverlay.innerHTML = '';
         }
 
         // --- Item Name Overlay Rendering ---
@@ -71,121 +75,175 @@ class RenderSystem extends System {
     }
 
     #renderMenu(container, menu) {
-        const menuWrapper = document.createElement('div');
-        menuWrapper.className = 'menu-wrapper';
+        // Clear the menu overlay before rendering new menu elements
+        this.menuOverlay.innerHTML = '';
 
-        // Determine highlighted module from selected option
-        let highlightedModuleEntity = null;
-        if (menu.activeMenu === 'main' && menu.options[menu.selectedIndex]) {
-            highlightedModuleEntity = menu.options[menu.selectedIndex].moduleEntity;
-        } else if (menu.activeMenu === 'submenu' && menu.submenu && menu.submenu.options[menu.submenuSelectedIndex]) {
-            highlightedModuleEntity = menu.submenu.options[menu.submenuSelectedIndex].moduleEntity;
-        }
-
-        // Override with manually set highlighted module (for inventory parts)
-        if (menu.highlightedModule !== null) {
-            highlightedModuleEntity = { id: menu.highlightedModule };
-        }
-
-        // Render module info box if a module is highlighted
-        if (highlightedModuleEntity) {
-            const moduleInfoBox = this.#renderModuleInfo(highlightedModuleEntity);
-            if (moduleInfoBox) {
-                menuWrapper.appendChild(moduleInfoBox);
-            }
-        }
-
-        // Create wrapper for menu containers
-        const containersWrapper = document.createElement('div');
-        containersWrapper.className = 'menu-containers-wrapper';
+        const gap = 10; // Gap between menus
+        const menuContainers = [];
 
         // Render main menu
-        const menuContainer = document.createElement('div');
-        menuContainer.className = 'menu-container';
-        const menuTitle = document.createElement('h3');
-        menuTitle.textContent = menu.title;
-        menuContainer.appendChild(menuTitle);
-        menu.options.forEach((option, index) => {
+        const mainContainer = this.#createMenuContainer(
+            menu.title,
+            menu.options,
+            menu.selectedIndex,
+            menu.activeMenu === 'main'
+        );
+        mainContainer.className = 'menu-container menu-main';
+        menuContainers.push({ element: mainContainer, level: 'main', menu: menu });
+        this.menuOverlay.appendChild(mainContainer);
+
+        // Render submenu1 if it exists
+        if (menu.submenu1) {
+            const submenu1Container = this.#createMenuContainer(
+                menu.submenu1.title,
+                menu.submenu1.options,
+                menu.submenu1SelectedIndex,
+                menu.activeMenu === 'submenu1'
+            );
+            submenu1Container.className = 'menu-container menu-submenu1';
+            menuContainers.push({ element: submenu1Container, level: 'submenu1', menu: menu });
+            this.menuOverlay.appendChild(submenu1Container);
+        }
+
+        // Render submenu2 if it exists
+        if (menu.submenu2) {
+            const submenu2Container = this.#createMenuContainer(
+                menu.submenu2.title,
+                menu.submenu2.options,
+                menu.submenu2SelectedIndex,
+                menu.activeMenu === 'submenu2'
+            );
+            submenu2Container.className = 'menu-container menu-submenu2';
+            menuContainers.push({ element: submenu2Container, level: 'submenu2', menu: menu });
+            this.menuOverlay.appendChild(submenu2Container);
+        }
+
+        // Position menus independently
+        this.#positionMenus(menuContainers, gap);
+
+        // Render details pane if it exists
+        if (menu.detailsPane) {
+            const detailsElement = this.#createDetailsPane(menu.detailsPane);
+            this.menuOverlay.appendChild(detailsElement);
+
+            // Position details pane intelligently above main menu
+            this.#positionDetailsPane(detailsElement, mainContainer, gap);
+        }
+    }
+
+    #createMenuContainer(title, options, selectedIndex, isActive) {
+        const container = document.createElement('div');
+
+        const titleElement = document.createElement('h3');
+        titleElement.textContent = title;
+        container.appendChild(titleElement);
+
+        options.forEach((option, index) => {
             const optionElement = document.createElement('div');
             optionElement.className = 'menu-option';
-            if (index === menu.selectedIndex && menu.activeMenu === 'main') {
+            if (index === selectedIndex && isActive) {
                 optionElement.classList.add('selected');
             }
             optionElement.textContent = option.label;
-            menuContainer.appendChild(optionElement);
+            container.appendChild(optionElement);
         });
-        containersWrapper.appendChild(menuContainer);
 
-        // Render submenu if it exists
-        if (menu.submenu) {
-            const submenuContainer = document.createElement('div');
-            submenuContainer.className = 'menu-container menu-submenu';
-            const submenuTitle = document.createElement('h3');
-            submenuTitle.textContent = menu.submenu.title;
-            submenuContainer.appendChild(submenuTitle);
-            menu.submenu.options.forEach((option, index) => {
-                const optionElement = document.createElement('div');
-                optionElement.className = 'menu-option';
-                if (index === menu.submenuSelectedIndex && menu.activeMenu === 'submenu') {
-                    optionElement.classList.add('selected');
-                }
-                optionElement.textContent = option.label;
-                submenuContainer.appendChild(optionElement);
-            });
-            containersWrapper.appendChild(submenuContainer);
-        }
-
-        menuWrapper.appendChild(containersWrapper);
-        container.appendChild(menuWrapper);
+        return container;
     }
 
-    #renderModuleInfo(moduleEntity) {
-        if (!moduleEntity || !moduleEntity.id) return null;
+    #positionMenus(menuContainers, gap) {
+        if (menuContainers.length === 0) return;
 
-        const world = this.world || (typeof game !== 'undefined' ? game.world : null);
-        if (!world) return null;
+        const mainContainer = menuContainers[0].element;
+        const mainWidth = mainContainer.offsetWidth;
+        const mainHeight = mainContainer.offsetHeight;
+        const screenCenterY = window.innerHeight / 2;
 
-        const entity = world.getEntity(moduleEntity.id);
-        if (!entity) return null;
+        // Get menu type from the menu element's dataset or determine from context
+        const menu = menuContainers[0].menu;
+        let mainX;
 
-        const itemComponent = entity.getComponent('ItemComponent');
-        const statModifier = entity.getComponent('StatModifierComponent');
-
-        if (!itemComponent) return null;
-
-        const infoBox = document.createElement('div');
-        infoBox.className = 'module-info-box';
-
-        // Module name
-        const title = document.createElement('h4');
-        title.textContent = itemComponent.name;
-        infoBox.appendChild(title);
-
-        // Description
-        if (itemComponent.description) {
-            const desc = document.createElement('div');
-            desc.className = 'module-info-description';
-            desc.textContent = itemComponent.description;
-            infoBox.appendChild(desc);
+        // Position workbench menus at 1/3 from left, inventory at center
+        if (menu && menu.menuType === 'workbench') {
+            mainX = window.innerWidth / 3;
+        } else {
+            mainX = window.innerWidth / 2;
         }
 
-        // Stats
-        if (statModifier && Object.keys(statModifier.modifiers).length > 0) {
-            const statsContainer = document.createElement('div');
-            statsContainer.className = 'module-info-stats';
+        // Position main menu
+        mainContainer.style.position = 'absolute';
+        mainContainer.style.left = `${mainX - mainWidth / 2}px`;
+        mainContainer.style.top = `${screenCenterY - mainHeight / 2}px`;
 
-            for (const [stat, value] of Object.entries(statModifier.modifiers)) {
-                const statElement = document.createElement('div');
-                statElement.className = 'module-info-stat';
-                const sign = value >= 0 ? '+' : '';
-                statElement.textContent = `${stat}: ${sign}${value}`;
-                statsContainer.appendChild(statElement);
+        // Position submenu1 to the right of main
+        if (menuContainers.length > 1) {
+            const submenu1Container = menuContainers[1].element;
+            submenu1Container.style.position = 'absolute';
+            submenu1Container.style.left = `${mainX + mainWidth / 2 + gap}px`;
+            submenu1Container.style.top = `${screenCenterY - submenu1Container.offsetHeight / 2}px`;
+
+            // Position submenu2 to the right of submenu1
+            if (menuContainers.length > 2) {
+                const submenu2Container = menuContainers[2].element;
+                const submenu1Width = submenu1Container.offsetWidth;
+                submenu2Container.style.position = 'absolute';
+                submenu2Container.style.left = `${mainX + mainWidth / 2 + gap + submenu1Width + gap}px`;
+                submenu2Container.style.top = `${screenCenterY - submenu2Container.offsetHeight / 2}px`;
             }
+        }
+    }
 
-            infoBox.appendChild(statsContainer);
+    #createDetailsPane(detailsData) {
+        const detailsPane = document.createElement('div');
+        detailsPane.className = 'details-pane';
+
+        // Title
+        const title = document.createElement('h4');
+        title.textContent = detailsData.title;
+        detailsPane.appendChild(title);
+
+        // Content lines
+        detailsData.lines.forEach(line => {
+            const lineElement = document.createElement('div');
+            lineElement.className = 'details-line';
+            lineElement.textContent = line;
+            detailsPane.appendChild(lineElement);
+        });
+
+        return detailsPane;
+    }
+
+    #positionDetailsPane(detailsElement, mainContainer, gap) {
+        const mainRect = mainContainer.getBoundingClientRect();
+        const detailsHeight = detailsElement.offsetHeight;
+        const detailsWidth = detailsElement.offsetWidth;
+
+        // Default: position above main menu, centered
+        let left = mainRect.left + (mainRect.width / 2) - (detailsWidth / 2);
+        let top = mainRect.top - detailsHeight - gap;
+
+        // Check if it goes off the top of the screen
+        if (top < gap) {
+            // Try positioning below instead
+            const bottomPosition = mainRect.bottom + gap;
+            if (bottomPosition + detailsHeight + gap < window.innerHeight) {
+                top = bottomPosition;
+            } else {
+                // If neither works, position at top with small gap
+                top = gap;
+            }
         }
 
-        return infoBox;
+        // Check horizontal bounds
+        if (left < gap) {
+            left = gap;
+        } else if (left + detailsWidth + gap > window.innerWidth) {
+            left = window.innerWidth - detailsWidth - gap;
+        }
+
+        detailsElement.style.position = 'absolute';
+        detailsElement.style.left = `${left}px`;
+        detailsElement.style.top = `${top}px`;
     }
 
     #renderItemNames(world, overlayContainer) {
@@ -310,35 +368,70 @@ class InputSystem extends System {
             const menu = menuEntity.getComponent('MenuComponent');
             switch (key) {
                 case 'w':
+                    // Navigate up in current active menu
                     if (menu.activeMenu === 'main') {
                         menu.selectedIndex = (menu.selectedIndex > 0) ? menu.selectedIndex - 1 : menu.options.length - 1;
-                    } else if (menu.submenu) {
-                        menu.submenuSelectedIndex = (menu.submenuSelectedIndex > 0) ? menu.submenuSelectedIndex - 1 : menu.submenu.options.length - 1;
+                    } else if (menu.activeMenu === 'submenu1' && menu.submenu1) {
+                        menu.submenu1SelectedIndex = (menu.submenu1SelectedIndex > 0) ? menu.submenu1SelectedIndex - 1 : menu.submenu1.options.length - 1;
+                    } else if (menu.activeMenu === 'submenu2' && menu.submenu2) {
+                        menu.submenu2SelectedIndex = (menu.submenu2SelectedIndex > 0) ? menu.submenu2SelectedIndex - 1 : menu.submenu2.options.length - 1;
+                        // Update workbench details when navigating in submenu2
+                        if (menu.menuType === 'workbench') {
+                            MENU_ACTIONS['update_workbench_details'](world.game);
+                        }
                     }
                     break;
                 case 's':
+                    // Navigate down in current active menu
                     if (menu.activeMenu === 'main') {
                         menu.selectedIndex = (menu.selectedIndex < menu.options.length - 1) ? menu.selectedIndex + 1 : 0;
-                    } else if (menu.submenu) {
-                        menu.submenuSelectedIndex = (menu.submenuSelectedIndex < menu.submenu.options.length - 1) ? menu.submenuSelectedIndex + 1 : 0;
+                    } else if (menu.activeMenu === 'submenu1' && menu.submenu1) {
+                        menu.submenu1SelectedIndex = (menu.submenu1SelectedIndex < menu.submenu1.options.length - 1) ? menu.submenu1SelectedIndex + 1 : 0;
+                    } else if (menu.activeMenu === 'submenu2' && menu.submenu2) {
+                        menu.submenu2SelectedIndex = (menu.submenu2SelectedIndex < menu.submenu2.options.length - 1) ? menu.submenu2SelectedIndex + 1 : 0;
+                        // Update workbench details when navigating in submenu2
+                        if (menu.menuType === 'workbench') {
+                            MENU_ACTIONS['update_workbench_details'](world.game);
+                        }
                     }
                     break;
                 case 'a':
-                    if (menu.submenu) {
+                    // Navigate back through menu levels
+                    if (menu.activeMenu === 'submenu2' && menu.submenu1) {
+                        menu.activeMenu = 'submenu1';
+                        // Update workbench details when navigating back
+                        if (menu.menuType === 'workbench') {
+                            MENU_ACTIONS['update_workbench_details'](world.game);
+                        }
+                    } else if (menu.activeMenu === 'submenu1') {
                         menu.activeMenu = 'main';
+                        // Clear details when navigating back to main
+                        if (menu.menuType === 'workbench') {
+                            menu.detailsPane = null;
+                        }
                     }
                     break;
                 case 'd':
-                    if (menu.submenu) {
-                        menu.activeMenu = 'submenu';
+                    // Navigate forward through menu levels
+                    if (menu.activeMenu === 'main' && menu.submenu1) {
+                        menu.activeMenu = 'submenu1';
+                    } else if (menu.activeMenu === 'submenu1' && menu.submenu2) {
+                        menu.activeMenu = 'submenu2';
+                        // Update workbench details when navigating forward
+                        if (menu.menuType === 'workbench') {
+                            MENU_ACTIONS['update_workbench_details'](world.game);
+                        }
                     }
                     break;
                 case ' ':
+                    // Select option in current active menu
                     let selectedOption;
                     if (menu.activeMenu === 'main') {
                         selectedOption = menu.options[menu.selectedIndex];
-                    } else if (menu.submenu) {
-                        selectedOption = menu.submenu.options[menu.submenuSelectedIndex];
+                    } else if (menu.activeMenu === 'submenu1' && menu.submenu1) {
+                        selectedOption = menu.submenu1.options[menu.submenu1SelectedIndex];
+                    } else if (menu.activeMenu === 'submenu2' && menu.submenu2) {
+                        selectedOption = menu.submenu2.options[menu.submenu2SelectedIndex];
                     }
 
                     if (selectedOption) {
@@ -351,10 +444,22 @@ class InputSystem extends System {
                     }
                     break;
                 case 'escape':
-                    if (menu.submenu && menu.activeMenu === 'submenu') {
-                        // Close submenu, go back to main
-                        menu.submenu = null;
+                    // Close current submenu level or entire menu
+                    if (menu.activeMenu === 'submenu2' && menu.submenu2) {
+                        menu.submenu2 = null;
+                        menu.activeMenu = 'submenu1';
+                        // Clear details pane when closing submenu2 for workbench
+                        if (menu.menuType === 'workbench') {
+                            menu.detailsPane = null;
+                        }
+                    } else if (menu.activeMenu === 'submenu1' && menu.submenu1) {
+                        menu.submenu1 = null;
+                        menu.submenu2 = null; // Cascade close
                         menu.activeMenu = 'main';
+                        // Clear details pane when closing submenu1
+                        if (menu.menuType === 'workbench') {
+                            menu.detailsPane = null;
+                        }
                     } else {
                         MENU_ACTIONS['close_menu'](world.game);
                     }
@@ -463,6 +568,7 @@ class HudSystem extends System {
         if (!player) return;
 
         const stats = player.getComponent('CreatureStatsComponent');
+        const bodyParts = player.getComponent('BodyPartsComponent');
         const name = player.getComponent('NameComponent');
         const inventory = player.getComponent('InventoryComponent');
 
@@ -471,35 +577,43 @@ class HudSystem extends System {
 
         // Apply modifiers to displayed stats
         const displayHunger = Math.min(100, stats.hunger + (modifiers.hunger || 0));
-        const displayHead = Math.min(100, stats.head + (modifiers.head || 0));
-        const displayChest = Math.min(100, stats.chest + (modifiers.chest || 0));
-        const displayLeftArm = Math.min(100, stats.left_arm + (modifiers.left_arm || 0));
-        const displayRightArm = Math.min(100, stats.right_arm + (modifiers.right_arm || 0));
-        const displayLeftLeg = Math.min(100, stats.left_leg + (modifiers.left_leg || 0));
-        const displayRightLeg = Math.min(100, stats.right_leg + (modifiers.right_leg || 0));
+        const displayRest = Math.min(100, stats.rest + (modifiers.rest || 0));
+        const displayStress = Math.min(100, stats.stress + (modifiers.stress || 0));
+        const displayComfort = Math.min(100, stats.comfort + (modifiers.comfort || 0));
 
         document.getElementById('hud-title').textContent = name.name;
         document.getElementById('bar-hunger').querySelector('.bar-fill').style.width = `${displayHunger}%`;
-        document.getElementById('bar-rest').style.width = `${stats.rest}%`;
-        document.getElementById('bar-stress').style.width = `${stats.stress}%`;
+        document.getElementById('bar-rest').querySelector('.bar-fill').style.width = `${displayRest}%`;
+        document.getElementById('bar-stress').querySelector('.bar-fill').style.width = `${displayStress}%`;
+        document.getElementById('bar-comfort').querySelector('.bar-fill').style.width = `${displayComfort}%`;
 
-        // Display stats with modifiers (show modifier if non-zero)
-        document.getElementById('hud-head').textContent = `Head: ${displayHead}%${modifiers.head ? ` (+${modifiers.head})` : ''}`;
-        document.getElementById('hud-chest').textContent = `Chest: ${displayChest}%${modifiers.chest ? ` (+${modifiers.chest})` : ''}`;
-        document.getElementById('hud-left-arm').textContent = `L-Arm: ${displayLeftArm}%${modifiers.left_arm ? ` (+${modifiers.left_arm})` : ''}`;
-        document.getElementById('hud-right-arm').textContent = `R-Arm: ${displayRightArm}%${modifiers.right_arm ? ` (+${modifiers.right_arm})` : ''}`;
-        document.getElementById('hud-left-leg').textContent = `L-Leg: ${displayLeftLeg}%${modifiers.left_leg ? ` (+${modifiers.left_leg})` : ''}`;
-        document.getElementById('hud-right-leg').textContent = `R-Leg: ${displayRightLeg}%${modifiers.right_leg ? ` (+${modifiers.right_leg})` : ''}`;
+        // Display body parts - only show parts below 100%
+        const bodyPartsContainer = document.getElementById('hud-body-parts');
+        if (bodyParts) {
+            const damagedParts = bodyParts.getDamagedParts();
+            if (damagedParts.length > 0) {
+                const partTexts = damagedParts.map(part => {
+                    // Capitalize first letter of part name
+                    const displayName = part.name.charAt(0).toUpperCase() + part.name.slice(1);
+                    const modifier = modifiers[part.name] || 0;
+                    const displayEfficiency = Math.min(100, part.efficiency + modifier);
+                    return `${displayName}: ${displayEfficiency}%${modifier ? ` (+${modifier})` : ''}`;
+                });
+                bodyPartsContainer.textContent = partTexts.join(' | ');
+            } else {
+                bodyPartsContainer.textContent = '';
+            }
+        }
 
         // Display inventory weight and slots
         if (inventory) {
             const currentWeight = inventory.getTotalWeight(world);
             const maxWeight = inventory.maxWeight;
-            const usedSlots = inventory.items.size;
+            const usedSlots = inventory.getTotalSlotsUsed(world);
             const maxSlots = inventory.capacity;
 
             document.getElementById('hud-weight').textContent = `Weight: ${currentWeight}g/${maxWeight}g`;
-            document.getElementById('hud-inventory').textContent = `Slots: ${usedSlots}/${maxSlots}`;
+            document.getElementById('hud-inventory').textContent = `Slots: ${usedSlots.toFixed(1)}/${maxSlots}`;
         }
     }
 }
@@ -539,6 +653,53 @@ class InteractionSystem extends System {
                 }
             }
             actor.removeComponent('ActionComponent');
+        }
+    }
+}
+
+// ComfortSystem - Manages comfort modifiers and stress adjustments
+class ComfortSystem extends System {
+    constructor() {
+        super();
+        this.lastUpdateTime = Date.now();
+        this.stressAdjustmentTimer = 0; // Timer for stress adjustments (every 30 seconds)
+    }
+
+    update(world) {
+        const now = Date.now();
+        const deltaTime = (now - this.lastUpdateTime) / 1000; // Convert to seconds
+        this.lastUpdateTime = now;
+
+        // Update stress adjustment timer
+        this.stressAdjustmentTimer += deltaTime;
+
+        const players = world.query(['PlayerComponent', 'CreatureStatsComponent', 'ComfortModifiersComponent']);
+        for (const player of players) {
+            const stats = player.getComponent('CreatureStatsComponent');
+            const comfortMods = player.getComponent('ComfortModifiersComponent');
+
+            // Update comfort modifiers (remove expired ones)
+            comfortMods.updateModifiers(deltaTime);
+
+            // Calculate total comfort (base 50 + modifiers)
+            const totalModifier = comfortMods.getTotalModifier();
+            stats.comfort = Math.max(0, Math.min(100, 50 + totalModifier));
+
+            // Every 30 seconds, adjust stress based on comfort
+            if (this.stressAdjustmentTimer >= 30) {
+                if (stats.comfort <= 30) {
+                    // Low comfort increases stress (penalty)
+                    stats.stress = Math.min(100, stats.stress + 1);
+                } else if (stats.comfort >= 80) {
+                    // High comfort decreases stress (relief)
+                    stats.stress = Math.max(0, stats.stress - 1);
+                }
+            }
+        }
+
+        // Reset timer after 30 seconds
+        if (this.stressAdjustmentTimer >= 30) {
+            this.stressAdjustmentTimer = 0;
         }
     }
 }

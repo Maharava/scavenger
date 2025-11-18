@@ -4,7 +4,6 @@ const MAP_DATA = {
     'CRYOBAY_7': {
         name: 'Cryo-bay 7',
         temperature: 21,
-        air_quality: 98,
         layout: [
             "++++++++++++++++++++++++++++++++++++++++",
             "+......................................+",
@@ -29,7 +28,7 @@ const MAP_DATA = {
             { id: 'DOOR_CLOSED', x: 15, y: 7 },
             // Equipment (with required parts pre-attached) - near player spawn
             { id: 'RUSTY_PISTOL', x: 18, y: 8 },
-            { id: 'SCRAP_ARMOR', x: 22, y: 8 },
+            { id: 'SCRAP_ARMOUR', x: 22, y: 8 },
             // Consumables
             { id: 'RICE_PATTY', x: 19, y: 9 },
             // Optional parts for modification

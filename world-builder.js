@@ -49,8 +49,8 @@ function buildWorld(world, mapId) {
 
         // Handle equipment items
         if (def.part_type) {
-            // This is a part item
-            world.addComponent(entity, new ItemComponent(def.name, def.description, def.weight || 0));
+            // This is a part item - modules take 0.5 slots
+            world.addComponent(entity, new ItemComponent(def.name, def.description, def.weight || 0, 0.5));
             world.addComponent(entity, new PartComponent(def.part_type));
             // Only add stat modifiers if they exist (some parts are just generic)
             if (def.modifiers && Object.keys(def.modifiers).length > 0) {
@@ -58,7 +58,7 @@ function buildWorld(world, mapId) {
             }
             world.addComponent(entity, new InteractableComponent('pickupItem', {}));
         } else if (def.attachment_slots) {
-            // This is a container item (gun or armor)
+            // This is a container item (gun or armour)
             world.addComponent(entity, new ItemComponent(def.name, def.description, def.weight || 0));
 
             const attachmentSlots = new AttachmentSlotsComponent(JSON.parse(JSON.stringify(def.attachment_slots)));
@@ -72,7 +72,8 @@ function buildWorld(world, mapId) {
                     if (partDef) {
                         // Create the part entity (createEntity returns the ID, not the entity object)
                         const partEntityId = world.createEntity();
-                        world.addComponent(partEntityId, new ItemComponent(partDef.name, partDef.description, partDef.weight || 0));
+                        // Parts (modules) take 0.5 slots
+                        world.addComponent(partEntityId, new ItemComponent(partDef.name, partDef.description, partDef.weight || 0, 0.5));
                         world.addComponent(partEntityId, new PartComponent(partDef.part_type));
                         world.addComponent(partEntityId, new NameComponent(partDef.name));
                         // Only add stat modifiers if they exist (some parts are just generic)
@@ -94,8 +95,8 @@ function buildWorld(world, mapId) {
             if (def.gun_type) {
                 world.addComponent(entity, new GunComponent(def.gun_type));
             }
-            if (def.armor_type) {
-                world.addComponent(entity, new ArmourComponent(def.armor_type));
+            if (def.armour_type) {
+                world.addComponent(entity, new ArmourComponent(def.armour_type));
             }
             world.addComponent(entity, new InteractableComponent('pickupItem', {}));
         } else if (def.script === 'pickupItem') {
@@ -122,15 +123,16 @@ function buildWorld(world, mapId) {
     world.addComponent(player, new PositionComponent(map.playerSpawn.x, map.playerSpawn.y));
     world.addComponent(player, new RenderableComponent(playerDef.char, playerDef.colour, 2));
     world.addComponent(player, new CreatureStatsComponent(50));
+    world.addComponent(player, new BodyPartsComponent());
     world.addComponent(player, new InventoryComponent());
     world.addComponent(player, new EquippedItemsComponent());
+    world.addComponent(player, new ComfortModifiersComponent());
 
     // Store map metadata in a global entity or directly in the world?
     // For now, let's attach it to the game object, which systems can access.
     // This will replace the old `currentRoom` properties.
     world.game.mapInfo = {
         name: map.name,
-        temperature: map.temperature,
-        air_quality: map.air_quality
+        temperature: map.temperature
     };
 }

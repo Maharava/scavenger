@@ -5,6 +5,14 @@
 function closeTopMenu(world) {
     const menuEntity = world.query(['MenuComponent'])[0];
     if (menuEntity) {
+        const menu = menuEntity.getComponent('MenuComponent');
+        // Clear all menu data to help with garbage collection
+        if (menu) {
+            menu.submenu1 = null;
+            menu.submenu2 = null;
+            menu.detailsPane = null;
+            menu.options = null;
+        }
         menuEntity.removeComponent('MenuComponent');
     }
 }
@@ -55,6 +63,178 @@ function getEquipmentModifiers(world, player) {
     });
 
     return modifiers;
+}
+
+// Helper function to calculate armor stats from attached components
+// Returns null if equipment is not armor or has no attachment slots
+function calculateArmourStats(world, armourEntity) {
+    const attachmentSlots = armourEntity.getComponent('AttachmentSlotsComponent');
+    const armourComponent = armourEntity.getComponent('ArmourComponent');
+
+    if (!attachmentSlots || !armourComponent) return null;
+
+    const stats = {
+        maxDurability: 0,
+        resistances: { kinetic: 0, energy: 0, toxin: 0, radiation: 0 },
+        tempMin: 0,
+        tempMax: 0
+    };
+
+    // Calculate stats from each attached component
+    for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
+        if (!slotData.entity_id) continue;
+
+        const part = world.getEntity(slotData.entity_id);
+        if (!part) continue;
+
+        const statMod = part.getComponent('StatModifierComponent');
+        if (!statMod || !statMod.modifiers) continue;
+
+        // Accumulate armor-specific stats
+        if (statMod.modifiers.maxDurability) {
+            stats.maxDurability += statMod.modifiers.maxDurability;
+        }
+        if (statMod.modifiers.kinetic) {
+            stats.resistances.kinetic += statMod.modifiers.kinetic;
+        }
+        if (statMod.modifiers.energy) {
+            stats.resistances.energy += statMod.modifiers.energy;
+        }
+        if (statMod.modifiers.toxin) {
+            stats.resistances.toxin += statMod.modifiers.toxin;
+        }
+        if (statMod.modifiers.radiation) {
+            stats.resistances.radiation += statMod.modifiers.radiation;
+        }
+        if (statMod.modifiers.tempMin) {
+            stats.tempMin += statMod.modifiers.tempMin;
+        }
+        if (statMod.modifiers.tempMax) {
+            stats.tempMax += statMod.modifiers.tempMax;
+        }
+    }
+
+    // Default durability if none specified
+    if (stats.maxDurability === 0) {
+        stats.maxDurability = 100;
+    }
+
+    return stats;
+}
+
+// Helper function to update armor stats component based on attached parts
+function updateArmourStats(world, armourEntity) {
+    const calculatedStats = calculateArmourStats(world, armourEntity);
+    if (!calculatedStats) return;
+
+    let armourStats = armourEntity.getComponent('ArmourStatsComponent');
+
+    // Create component if it doesn't exist
+    if (!armourStats) {
+        armourStats = new ArmourStatsComponent(calculatedStats.maxDurability);
+        world.addComponent(armourEntity.id, armourStats);
+    }
+
+    // Update stats from calculated values
+    const oldMaxDurability = armourStats.maxDurability;
+    armourStats.maxDurability = calculatedStats.maxDurability;
+
+    // Scale current durability proportionally if max changed
+    if (oldMaxDurability > 0 && oldMaxDurability !== calculatedStats.maxDurability) {
+        const durabilityPercent = armourStats.durability / oldMaxDurability;
+        armourStats.durability = calculatedStats.maxDurability * durabilityPercent;
+    } else if (armourStats.durability === 0 || armourStats.durability > calculatedStats.maxDurability) {
+        armourStats.durability = calculatedStats.maxDurability;
+    }
+
+    armourStats.resistances = calculatedStats.resistances;
+    armourStats.tempMin = calculatedStats.tempMin;
+    armourStats.tempMax = calculatedStats.tempMax;
+}
+
+// Helper function to calculate gun stats from attached parts
+function calculateGunStats(world, gunEntity) {
+    const attachmentSlots = gunEntity.getComponent('AttachmentSlotsComponent');
+    const gunComponent = gunEntity.getComponent('GunComponent');
+
+    if (!attachmentSlots || !gunComponent) return null;
+
+    const stats = {
+        damageType: 'kinetic',
+        damageAmount: 0,
+        penetration: 1.0,
+        accuracy: 70, // Base accuracy
+        range: 0,
+        comfortPenalty: 0
+    };
+
+    // Process each attached part
+    for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
+        if (!slotData.entity_id) continue;
+
+        const part = world.getEntity(slotData.entity_id);
+        if (!part) continue;
+
+        const partComp = part.getComponent('PartComponent');
+        const statMod = part.getComponent('StatModifierComponent');
+        if (!partComp || !statMod || !statMod.modifiers) continue;
+
+        // Chamber: Sets damage type, amount, and base penetration
+        if (partComp.part_type === 'chamber') {
+            if (statMod.modifiers.damageType) stats.damageType = statMod.modifiers.damageType;
+            if (statMod.modifiers.damageAmount) stats.damageAmount = statMod.modifiers.damageAmount;
+            if (statMod.modifiers.penetration !== undefined) stats.penetration = statMod.modifiers.penetration;
+        }
+
+        // Barrel: Modifies damage, penetration, sets range, modifies accuracy
+        if (partComp.part_type === 'barrel') {
+            if (statMod.modifiers.damageAmount) stats.damageAmount += statMod.modifiers.damageAmount;
+            if (statMod.modifiers.penetration) stats.penetration *= statMod.modifiers.penetration;
+            if (statMod.modifiers.range) stats.range = statMod.modifiers.range;
+            if (statMod.modifiers.accuracy) stats.accuracy += statMod.modifiers.accuracy;
+        }
+
+        // Grip: Modifies accuracy and comfort penalty
+        if (partComp.part_type === 'grip') {
+            if (statMod.modifiers.accuracy) stats.accuracy += statMod.modifiers.accuracy;
+            if (statMod.modifiers.comfortPenalty !== undefined) stats.comfortPenalty = statMod.modifiers.comfortPenalty;
+        }
+
+        // Optional mods can also modify stats
+        if (partComp.part_type === 'mod_gun' || partComp.part_type === 'mod_pistol' || partComp.part_type === 'mod_rifle') {
+            if (statMod.modifiers.accuracy) stats.accuracy += statMod.modifiers.accuracy;
+            if (statMod.modifiers.damageAmount) stats.damageAmount += statMod.modifiers.damageAmount;
+            if (statMod.modifiers.range) stats.range += statMod.modifiers.range;
+            if (statMod.modifiers.penetration) stats.penetration *= statMod.modifiers.penetration;
+        }
+    }
+
+    // Clamp accuracy to 0-100 range
+    stats.accuracy = Math.max(0, Math.min(100, stats.accuracy));
+
+    return stats;
+}
+
+// Helper function to update gun stats component based on attached parts
+function updateGunStats(world, gunEntity) {
+    const calculatedStats = calculateGunStats(world, gunEntity);
+    if (!calculatedStats) return;
+
+    let gunStats = gunEntity.getComponent('GunStatsComponent');
+
+    // Create component if it doesn't exist
+    if (!gunStats) {
+        gunStats = new GunStatsComponent();
+        world.addComponent(gunEntity.id, gunStats);
+    }
+
+    // Update stats from calculated values
+    gunStats.damageType = calculatedStats.damageType;
+    gunStats.damageAmount = calculatedStats.damageAmount;
+    gunStats.penetration = calculatedStats.penetration;
+    gunStats.accuracy = calculatedStats.accuracy;
+    gunStats.range = calculatedStats.range;
+    gunStats.comfortPenalty = calculatedStats.comfortPenalty;
 }
 
 const MENU_ACTIONS = {
@@ -116,9 +296,14 @@ const MENU_ACTIONS = {
                         game.world.destroyEntity(itemEntity.id); // Destroy the item entity only if quantity is 0
                         // If quantity is 0, close the submenu and return to main inventory
                         if (menu) {
-                            menu.submenu = null;
+                            menu.submenu1 = null;
                             menu.activeMenu = 'main';
-                            menu.highlightedModule = null; // Clear highlighted module
+                            menu.detailsPane = null; // Clear details pane
+                        }
+                        // Check if inventory is now empty and close menu
+                        if (inventory.items.size === 0) {
+                            closeTopMenu(game.world);
+                            return; // Exit early as menu is closed
                         }
                     }
                     // Refresh the main inventory menu to update quantities
@@ -131,9 +316,14 @@ const MENU_ACTIONS = {
                     // If item is destroyed, close the submenu and return to main inventory
                     const menu = player.getComponent('MenuComponent');
                     if (menu) {
-                        menu.submenu = null;
+                        menu.submenu1 = null;
                         menu.activeMenu = 'main';
-                        menu.highlightedModule = null; // Clear highlighted module
+                        menu.detailsPane = null; // Clear details pane
+                    }
+                    // Check if inventory is now empty and close menu
+                    if (inventory.items.size === 0) {
+                        closeTopMenu(game.world);
+                        return; // Exit early as menu is closed
                     }
                     SCRIPT_REGISTRY['openInventoryMenu'](game, player); // Refresh main inventory
                 }
@@ -144,9 +334,14 @@ const MENU_ACTIONS = {
         if (!consumable || !stats) {
             const menu = player.getComponent('MenuComponent');
             if (menu) {
-                menu.submenu = null;
+                menu.submenu1 = null;
                 menu.activeMenu = 'main';
-                menu.highlightedModule = null; // Clear highlighted module
+                menu.detailsPane = null; // Clear details pane
+            }
+            // Check if inventory is now empty and close menu
+            if (inventory.items.size === 0) {
+                closeTopMenu(game.world);
+                return; // Exit early as menu is closed
             }
             SCRIPT_REGISTRY['openInventoryMenu'](game, player); // Refresh main inventory
         }
@@ -180,8 +375,8 @@ const MENU_ACTIONS = {
             if (currentEquipped) {
                 const currentItem = currentEquipped.getComponent('ItemComponent');
                 // Check inventory space
-                if (inventory.items.size >= inventory.capacity) {
-                    game.world.addComponent(player.id, new MessageComponent('Inventory full!', 'red'));
+                if (!inventory.canAddItem(game.world, currentEquipped, 1)) {
+                    game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
                     closeTopMenu(game.world);
                     return;
                 }
@@ -193,6 +388,12 @@ const MENU_ACTIONS = {
         equipped[slot] = itemEntity.id;
         inventory.items.delete(itemComponent.name);
         game.world.addComponent(player.id, new MessageComponent(`Equipped ${itemComponent.name}!`, 'green'));
+
+        // If inventory is now empty, close the menu
+        if (inventory.items.size === 0) {
+            closeTopMenu(game.world);
+            return; // Exit early as menu is closed
+        }
 
         // Re-open the inventory menu to refresh its contents
         SCRIPT_REGISTRY['openInventoryMenu'](game, player);
@@ -214,8 +415,8 @@ const MENU_ACTIONS = {
         const slot = equipment.slot;
 
         // Check inventory space
-        if (inventory.items.size >= inventory.capacity) {
-            game.world.addComponent(player.id, new MessageComponent('Inventory full!', 'red'));
+        if (!inventory.canAddItem(game.world, itemEntity, 1)) {
+            game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
             closeTopMenu(game.world);
             return;
         }
@@ -321,7 +522,7 @@ const MENU_ACTIONS = {
 
         game.world.addComponent(player.id, new MessageComponent(`Attached ${partItem.name}!`, 'green'));
         // Return to module view
-        MENU_ACTIONS['workbench_modules'](game, args.equipment);
+        MENU_ACTIONS['manage_equipment_modules'](game, args.equipment);
     },
     'detach_part': (game, args) => {
         const player = game.world.query(['PlayerComponent'])[0];
@@ -336,15 +537,15 @@ const MENU_ACTIONS = {
             return;
         }
 
+        const part = game.world.getEntity(partId);
+        const partItem = part.getComponent('ItemComponent');
+
         // Check inventory space
-        if (inventory.items.size >= inventory.capacity) {
-            game.world.addComponent(player.id, new MessageComponent('Inventory full!', 'red'));
+        if (!inventory.canAddItem(game.world, part, 1)) {
+            game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
             closeTopMenu(game.world);
             return;
         }
-
-        const part = game.world.getEntity(partId);
-        const partItem = part.getComponent('ItemComponent');
 
         // Detach the part
         attachmentSlots.slots[args.slotName].entity_id = null;
@@ -352,7 +553,7 @@ const MENU_ACTIONS = {
 
         game.world.addComponent(player.id, new MessageComponent(`Detached ${partItem.name}!`, 'green'));
         // Return to module view
-        MENU_ACTIONS['workbench_modules'](game, args.equipment);
+        MENU_ACTIONS['manage_equipment_modules'](game, args.equipment);
     },
     'view_equipment': (game) => {
         const player = game.world.query(['PlayerComponent'])[0];
@@ -396,15 +597,55 @@ const MENU_ACTIONS = {
         const player = game.world.query(['PlayerComponent'])[0];
         if (!player) return;
 
+        const menu = player.getComponent('MenuComponent');
+        if (!menu) return;
+
         const itemComponent = equipmentEntity.getComponent('ItemComponent');
-        const menuOptions = [
-            { label: 'Unequip', action: 'unequip_item', actionArgs: equipmentEntity },
-            { label: 'Back', action: 'view_equipment' }
+        const attachmentSlots = equipmentEntity.getComponent('AttachmentSlotsComponent');
+
+        const submenuOptions = [
+            { label: 'Inspect', action: 'inspect_item', actionArgs: equipmentEntity },
+            { label: 'Unequip', action: 'unequip_equipped_item', actionArgs: equipmentEntity },
+            { label: 'Exit', action: 'close_submenu' }
         ];
 
-        if (player && !player.hasComponent('MenuComponent')) {
-            game.world.addComponent(player.id, new MenuComponent(itemComponent.name, menuOptions, player));
+        // Set submenu1 and switch to it
+        menu.submenu1 = { title: itemComponent.name, options: submenuOptions };
+        menu.submenu1SelectedIndex = 0;
+        menu.submenu2 = null;
+        menu.activeMenu = 'submenu1';
+        menu.detailsPane = null;
+    },
+    'unequip_equipped_item': (game, equipmentEntity) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const equipment = equipmentEntity.getComponent('EquipmentComponent');
+        const itemComponent = equipmentEntity.getComponent('ItemComponent');
+        const equipped = player.getComponent('EquippedItemsComponent');
+        const inventory = player.getComponent('InventoryComponent');
+
+        if (!equipment || !equipped || !inventory) {
+            closeTopMenu(game.world);
+            return;
         }
+
+        const slot = equipment.slot;
+
+        // Check inventory space
+        if (!inventory.canAddItem(game.world, equipmentEntity, 1)) {
+            game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
+            closeTopMenu(game.world);
+            return;
+        }
+
+        // Unequip item
+        equipped[slot] = null;
+        inventory.items.set(itemComponent.name, { entityId: equipmentEntity.id, quantity: 1 });
+        game.world.addComponent(player.id, new MessageComponent(`Unequipped ${itemComponent.name}!`, 'green'));
+
+        // Refresh the equipment view
+        MENU_ACTIONS['view_equipment'](game);
     },
     'show_item_submenu': (game, itemEntity) => {
         const player = game.world.query(['PlayerComponent'])[0];
@@ -417,36 +658,72 @@ const MENU_ACTIONS = {
         const consumable = itemEntity.getComponent('ConsumableComponent');
         const equipment = itemEntity.getComponent('EquipmentComponent');
         const attachmentSlots = itemEntity.getComponent('AttachmentSlotsComponent');
-        const partComponent = itemEntity.getComponent('PartComponent');
 
         const submenuOptions = [];
 
         // Add appropriate actions
         if (consumable) {
-            submenuOptions.push({ label: 'Eat', action: 'use_item', actionArgs: itemEntity });
+            submenuOptions.push({ label: 'Use', action: 'use_item', actionArgs: itemEntity });
         }
 
         if (equipment) {
             submenuOptions.push({ label: 'Equip', action: 'equip_item', actionArgs: itemEntity });
         }
 
-        if (attachmentSlots) {
-            submenuOptions.push({ label: 'Inspect', action: 'inspect_equipment', actionArgs: itemEntity });
-        }
+        // Always offer inspect option
+        submenuOptions.push({ label: 'Inspect', action: 'inspect_item', actionArgs: itemEntity });
 
         submenuOptions.push({ label: 'Exit', action: 'close_submenu' });
 
-        // Set submenu and switch to it - if this is a part, include it as moduleEntity for all options
-        menu.submenu = { title: itemComponent.name, options: submenuOptions };
-        menu.submenuSelectedIndex = 0;
-        menu.activeMenu = 'submenu';
+        // Set submenu1 and switch to it
+        menu.submenu1 = { title: itemComponent.name, options: submenuOptions };
+        menu.submenu1SelectedIndex = 0;
+        menu.submenu2 = null; // Clear deeper submenus
+        menu.activeMenu = 'submenu1';
+        menu.detailsPane = null; // Clear any existing details pane
+    },
+    'inspect_item': (game, itemEntity) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
 
-        // If this is a module part, set it as the highlighted module
-        if (partComponent) {
-            menu.highlightedModule = itemEntity.id;
-        } else {
-            menu.highlightedModule = null;
+        const menu = player.getComponent('MenuComponent');
+        if (!menu) return;
+
+        const itemComponent = itemEntity.getComponent('ItemComponent');
+        const statModifier = itemEntity.getComponent('StatModifierComponent');
+        const consumable = itemEntity.getComponent('ConsumableComponent');
+        const equipment = itemEntity.getComponent('EquipmentComponent');
+
+        const lines = [];
+
+        // Add description
+        if (itemComponent.description) {
+            lines.push(itemComponent.description);
+            lines.push(''); // Blank line
         }
+
+        // Add item type
+        if (consumable) {
+            lines.push('Type: Consumable');
+        } else if (equipment) {
+            lines.push(`Type: ${equipment.slot}`);
+        }
+
+        // Add stats if present
+        if (statModifier && Object.keys(statModifier.modifiers).length > 0) {
+            lines.push(''); // Blank line
+            lines.push('Stats:');
+            for (const [stat, value] of Object.entries(statModifier.modifiers)) {
+                const sign = value >= 0 ? '+' : '';
+                lines.push(`  ${stat}: ${sign}${value}`);
+            }
+        }
+
+        // Set details pane
+        menu.detailsPane = {
+            title: itemComponent.name,
+            lines: lines
+        };
     },
     'close_submenu': (game) => {
         const player = game.world.query(['PlayerComponent'])[0];
@@ -454,12 +731,19 @@ const MENU_ACTIONS = {
 
         const menu = player.getComponent('MenuComponent');
         if (menu) {
-            menu.submenu = null;
-            menu.activeMenu = 'main';
-            menu.highlightedModule = null; // Clear highlighted module when submenu closes
+            // Close current submenu level
+            if (menu.activeMenu === 'submenu2') {
+                menu.submenu2 = null;
+                menu.activeMenu = 'submenu1';
+            } else if (menu.activeMenu === 'submenu1') {
+                menu.submenu1 = null;
+                menu.submenu2 = null;
+                menu.activeMenu = 'main';
+            }
+            menu.detailsPane = null; // Clear details pane when closing submenu
         }
     },
-    'inspect_equipment': (game, equipmentEntity) => {
+    'show_equipment_slots': (game, equipmentEntity) => {
         const player = game.world.query(['PlayerComponent'])[0];
         if (!player) return;
 
@@ -476,14 +760,12 @@ const MENU_ACTIONS = {
         // Show all slots with their current state
         for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
             let label = `${slotName}: `;
-            let moduleEntity = null;
 
             if (slotData.entity_id) {
                 const part = game.world.getEntity(slotData.entity_id);
                 if (part) {
                     const partItem = part.getComponent('ItemComponent');
                     label += partItem.name;
-                    moduleEntity = part;
                 } else {
                     label += 'ERROR: Missing entity';
                 }
@@ -491,82 +773,60 @@ const MENU_ACTIONS = {
                 label += `Empty${slotData.required ? ' (REQUIRED)' : ''}`;
             }
 
-            submenuOptions.push({ label: label, action: 'close_submenu', moduleEntity: moduleEntity });
-        }
-
-        submenuOptions.push({ label: 'Back', action: 'close_submenu' });
-
-        // Replace submenu with inspection view
-        menu.submenu = { title: `${itemComponent.name} - Modules`, options: submenuOptions };
-        menu.submenuSelectedIndex = 0;
-        menu.activeMenu = 'submenu';
-    },
-    'workbench_modules': (game, equipmentEntity) => {
-        const player = game.world.query(['PlayerComponent'])[0];
-        if (!player) return;
-
-        const itemComponent = equipmentEntity.getComponent('ItemComponent');
-        const attachmentSlots = equipmentEntity.getComponent('AttachmentSlotsComponent');
-
-        if (!attachmentSlots) {
-            closeTopMenu(game.world);
-            return;
-        }
-
-        const menuOptions = [];
-
-        // Show all slots with their current state - these are interactive
-        for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
-            let label = `${slotName}: `;
-            let moduleEntity = null;
-
-            if (slotData.entity_id) {
-                const part = game.world.getEntity(slotData.entity_id);
-                if (part) {
-                    const partItem = part.getComponent('ItemComponent');
-                    label += partItem.name;
-                    moduleEntity = part;
-                } else {
-                    label += 'ERROR: Missing entity';
-                }
-            } else {
-                label += `Empty${slotData.required ? ' (REQUIRED)' : ''}`;
-            }
-
-            menuOptions.push({
+            submenuOptions.push({
                 label: label,
-                action: 'swap_module_menu',
-                actionArgs: { equipment: equipmentEntity, slotName: slotName },
-                moduleEntity: moduleEntity
+                action: 'show_slot_mods',
+                actionArgs: { equipment: equipmentEntity, slotName: slotName }
             });
         }
 
-        menuOptions.push({ label: 'Back', action: 'close_menu' });
+        submenuOptions.push({ label: 'Exit', action: 'close_submenu' });
 
-        if (player && !player.hasComponent('MenuComponent')) {
-            game.world.addComponent(player.id, new MenuComponent(`${itemComponent.name} - Modules`, menuOptions, player));
-        }
+        // Set submenu1 and auto-focus
+        menu.submenu1 = { title: `${itemComponent.name} - Slots`, options: submenuOptions };
+        menu.submenu1SelectedIndex = 0;
+        menu.submenu2 = null; // Close any deeper submenus
+        menu.activeMenu = 'submenu1';
+        menu.detailsPane = null; // Clear details when opening new equipment
     },
-    'swap_module_menu': (game, args) => {
+    'show_slot_mods': (game, args) => {
         const player = game.world.query(['PlayerComponent'])[0];
         if (!player) return;
+
+        const menu = player.getComponent('MenuComponent');
+        if (!menu) return;
+
+        // Check if this is armor and if it's too damaged to modify
+        const armourStats = args.equipment.getComponent('ArmourStatsComponent');
+        const itemComponent = args.equipment.getComponent('ItemComponent');
+        if (armourStats) {
+            const durabilityPercent = armourStats.getDurabilityPercent();
+            if (durabilityPercent < 80) {
+                game.world.addComponent(player.id, new MessageComponent(
+                    `${itemComponent.name} is too damaged (${Math.floor(durabilityPercent)}%) to modify. Repair it to at least 80% durability first.`,
+                    'red'
+                ));
+                // Stay on the slots menu
+                return;
+            }
+        }
 
         const inventory = player.getComponent('InventoryComponent');
         const attachmentSlots = args.equipment.getComponent('AttachmentSlotsComponent');
         const slotData = attachmentSlots.slots[args.slotName];
 
-        const menuOptions = [];
+        const submenuOptions = [];
 
         // If there's currently a module installed, add option to remove it
         if (slotData.entity_id) {
             const currentPart = game.world.getEntity(slotData.entity_id);
             if (currentPart) {
                 const partItem = currentPart.getComponent('ItemComponent');
-                menuOptions.push({
+                submenuOptions.push({
                     label: `Remove ${partItem.name}`,
                     action: 'swap_module',
                     actionArgs: { equipment: args.equipment, slotName: args.slotName, newPart: null },
-                    moduleEntity: currentPart
+                    modEntity: currentPart
                 });
             }
         }
@@ -577,26 +837,85 @@ const MENU_ACTIONS = {
             const partComponent = itemEntity.getComponent('PartComponent');
 
             if (partComponent && partComponent.part_type === slotData.accepted_type) {
-                menuOptions.push({
-                    label: `Install ${itemName}`,
+                const label = slotData.entity_id ? `Swap with ${itemName}` : `Install ${itemName}`;
+                submenuOptions.push({
+                    label: label,
                     action: 'swap_module',
                     actionArgs: { equipment: args.equipment, slotName: args.slotName, newPart: itemEntity },
-                    moduleEntity: itemEntity
+                    modEntity: itemEntity
                 });
             }
         }
 
-        if (menuOptions.length === 0) {
-            game.world.addComponent(player.id, new MessageComponent(`No compatible modules for ${args.slotName}!`, 'yellow'));
-            closeTopMenu(game.world);
-            return;
+        if (submenuOptions.length === 0) {
+            submenuOptions.push({ label: 'No compatible modules', action: 'close_submenu' });
         }
 
-        menuOptions.push({ label: 'Back', action: 'workbench_modules', actionArgs: args.equipment });
+        submenuOptions.push({ label: 'Exit', action: 'close_submenu' });
 
-        if (player && !player.hasComponent('MenuComponent')) {
-            game.world.addComponent(player.id, new MenuComponent(`Swap ${args.slotName}`, menuOptions, player));
+        // Set submenu2 and auto-focus
+        menu.submenu2 = { title: `${args.slotName}`, options: submenuOptions };
+        menu.submenu2SelectedIndex = 0;
+        menu.activeMenu = 'submenu2';
+
+        // Show details for first mod (if any)
+        MENU_ACTIONS['update_workbench_details'](game);
+    },
+    'update_workbench_details': (game) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const menu = player.getComponent('MenuComponent');
+        if (!menu || menu.menuType !== 'workbench') return;
+
+        // Only show details if in submenu2 (mod selection)
+        if (menu.activeMenu === 'submenu2' && menu.submenu2) {
+            const selectedOption = menu.submenu2.options[menu.submenu2SelectedIndex];
+            if (selectedOption && selectedOption.modEntity) {
+                const modEntity = selectedOption.modEntity;
+                const itemComponent = modEntity.getComponent('ItemComponent');
+                const statModifier = modEntity.getComponent('StatModifierComponent');
+                const partComponent = modEntity.getComponent('PartComponent');
+
+                const lines = [];
+
+                if (itemComponent.description) {
+                    lines.push(itemComponent.description);
+                    lines.push('');
+                }
+
+                if (partComponent) {
+                    lines.push(`Type: ${partComponent.part_type}`);
+                }
+
+                if (statModifier && Object.keys(statModifier.modifiers).length > 0) {
+                    lines.push('');
+                    lines.push('Stats:');
+                    for (const [stat, value] of Object.entries(statModifier.modifiers)) {
+                        const sign = value >= 0 ? '+' : '';
+                        lines.push(`  ${stat}: ${sign}${value}`);
+                    }
+                }
+
+                menu.detailsPane = {
+                    title: itemComponent.name,
+                    lines: lines
+                };
+            } else {
+                menu.detailsPane = null;
+            }
+        } else if (menu.activeMenu === 'submenu1') {
+            // Clear details when navigating back to slot selection
+            menu.detailsPane = null;
         }
+    },
+    'manage_equipment_modules': (game, equipmentEntity) => {
+        // Deprecated - kept for compatibility, redirects to new action
+        MENU_ACTIONS['show_equipment_slots'](game, equipmentEntity);
+    },
+    'swap_module_menu': (game, args) => {
+        // Deprecated - kept for compatibility, redirects to new action
+        MENU_ACTIONS['show_slot_mods'](game, args);
     },
     'swap_module': (game, args) => {
         const player = game.world.query(['PlayerComponent'])[0];
@@ -613,8 +932,8 @@ const MENU_ACTIONS = {
                 const oldPartItem = oldPart.getComponent('ItemComponent');
 
                 // Check inventory space if we're installing a new part (swapping)
-                if (args.newPart && inventory.items.size >= inventory.capacity) {
-                    game.world.addComponent(player.id, new MessageComponent('Inventory full!', 'red'));
+                if (args.newPart && !inventory.canAddItem(game.world, oldPart, 1)) {
+                    game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
                     closeTopMenu(game.world);
                     return;
                 }
@@ -636,8 +955,12 @@ const MENU_ACTIONS = {
             game.world.addComponent(player.id, new MessageComponent(`Removed module from ${args.slotName}!`, 'green'));
         }
 
-        // Return to module view
-        MENU_ACTIONS['workbench_modules'](game, args.equipment);
+        // Update equipment stats
+        updateArmourStats(game.world, args.equipment); // Updates if armor
+        updateGunStats(game.world, args.equipment); // Updates if gun
+
+        // Refresh the equipment slots submenu and close the mod selection submenu
+        MENU_ACTIONS['show_equipment_slots'](game, args.equipment);
     }
 };
 
@@ -673,23 +996,29 @@ const SCRIPT_REGISTRY = {
             if (inventory.items.has(itemName)) {
                 const existingStack = inventory.items.get(itemName);
                 if (existingStack.quantity < stackableComponent.stackLimit) {
-                    existingStack.quantity++;
-                    game.world.addComponent(player.id, new MessageComponent(`Picked up another ${itemName} (x${existingStack.quantity})`));
-                    game.world.destroyEntity(self.id); // Destroy the picked up item entity
-                    return;
+                    // Check if we can add the weight and slots
+                    if (inventory.canAddItem(game.world, self, 1)) {
+                        existingStack.quantity++;
+                        game.world.addComponent(player.id, new MessageComponent(`Picked up another ${itemName} (x${existingStack.quantity})`));
+                        game.world.destroyEntity(self.id); // Destroy the picked up item entity
+                        return;
+                    } else {
+                        game.world.addComponent(player.id, new MessageComponent(`Not enough space!`, 'red'));
+                        return;
+                    }
                 }
             }
         }
 
         // If not stackable, or stackable but no existing stack or existing stack is full
-        if (inventory.items.size < inventory.capacity) {
+        if (inventory.canAddItem(game.world, self, 1)) {
             // Add to inventory as a new entry (either new stackable or non-stackable)
             inventory.items.set(itemName, { entityId: self.id, quantity: stackableComponent ? 1 : 1 });
             self.removeComponent('PositionComponent');
             self.removeComponent('RenderableComponent');
             game.world.addComponent(player.id, new MessageComponent(`Picked up ${itemName}`));
         } else {
-            game.world.addComponent(player.id, new MessageComponent(`Inventory full!`));
+            game.world.addComponent(player.id, new MessageComponent(`Not enough space!`, 'red'));
         }
     },
     'openInventoryMenu': (game, self, args) => {
@@ -724,8 +1053,9 @@ const SCRIPT_REGISTRY = {
             game.world.removeComponent(player.id, 'MenuComponent');
         }
         // Then, add the new MenuComponent
-        const newMenuComponent = new MenuComponent('Inventory', menuOptions, player);
-        newMenuComponent.submenu = null; // Explicitly clear submenu
+        const newMenuComponent = new MenuComponent('Inventory', menuOptions, player, 'inventory');
+        newMenuComponent.submenu1 = null; // Explicitly clear submenu
+        newMenuComponent.submenu2 = null;
         newMenuComponent.activeMenu = 'main'; // Explicitly set active menu to main
         game.world.addComponent(player.id, newMenuComponent);
     },
@@ -740,11 +1070,29 @@ const SCRIPT_REGISTRY = {
         }
 
         const equipableItems = [];
+
+        // Add inventory items that are modular equipment
         for (const [itemName, itemData] of inventory.items) {
             const itemEntity = game.world.getEntity(itemData.entityId);
-            // Check if the item is equipment (weapon or armour)
-            if (itemEntity.hasComponent('EquipmentComponent')) {
+            if (itemEntity && itemEntity.hasComponent('EquipmentComponent') && itemEntity.hasComponent('AttachmentSlotsComponent')) {
                 equipableItems.push(itemEntity);
+            }
+        }
+
+        // Add equipped items that are modular equipment
+        const equipped = player.getComponent('EquippedItemsComponent');
+        if (equipped) {
+            if (equipped.hand) {
+                const handItem = game.world.getEntity(equipped.hand);
+                if (handItem && handItem.hasComponent('EquipmentComponent') && handItem.hasComponent('AttachmentSlotsComponent')) {
+                    equipableItems.push(handItem);
+                }
+            }
+            if (equipped.body) {
+                const bodyItem = game.world.getEntity(equipped.body);
+                if (bodyItem && bodyItem.hasComponent('EquipmentComponent') && bodyItem.hasComponent('AttachmentSlotsComponent')) {
+                    equipableItems.push(bodyItem);
+                }
             }
         }
 
@@ -757,15 +1105,23 @@ const SCRIPT_REGISTRY = {
             const itemComponent = itemEntity.getComponent('ItemComponent');
             return {
                 label: itemComponent.name,
-                action: 'workbench_modules', // This will be the next action
+                action: 'show_equipment_slots',
                 actionArgs: itemEntity
             };
         });
         menuOptions.push({ label: 'Back', action: 'close_menu' });
 
-        if (player && !player.hasComponent('MenuComponent')) {
-            game.world.addComponent(player.id, new MenuComponent('Select Equipment to Modify', menuOptions, player));
+        // First, remove any existing MenuComponent to ensure a fresh start
+        const existingMenuEntity = game.world.query(['MenuComponent'])[0];
+        if (existingMenuEntity) {
+            game.world.removeComponent(player.id, 'MenuComponent');
         }
+        // Then, add the new MenuComponent
+        const newMenuComponent = new MenuComponent('Select Equipment to Modify', menuOptions, player, 'workbench');
+        newMenuComponent.submenu1 = null; // Explicitly clear submenus
+        newMenuComponent.submenu2 = null;
+        newMenuComponent.activeMenu = 'main'; // Explicitly set active menu to main
+        game.world.addComponent(player.id, newMenuComponent);
     }
 };
 
@@ -790,6 +1146,7 @@ class Game {
         this.world.registerSystem(new InputSystem());
         this.world.registerSystem(new InteractionSystem());
         this.world.registerSystem(new MovementSystem());
+        this.world.registerSystem(new ComfortSystem());
         this.world.registerSystem(new HudSystem());
         this.world.registerSystem(new RenderSystem());
         // MessageSystem is updated manually after world.update() to ensure proper message ordering
@@ -821,8 +1178,20 @@ class Game {
     updateAreaHud() {
         const info = this.mapInfo;
         document.getElementById('area-name').textContent = info.name || 'Area';
-        document.getElementById('area-temp').textContent = `${info.temperature}C`;
-        document.getElementById('area-air').textContent = `Air: ${info.air_quality}%`;
+
+        // Get player's comfortable temperature range
+        const player = this.world.query(['PlayerComponent'])[0];
+        let tempRangeText = '';
+        if (player) {
+            const stats = player.getComponent('CreatureStatsComponent');
+            if (stats) {
+                const modifiers = getEquipmentModifiers(this.world, player);
+                const tempRange = stats.getComfortTempRange(modifiers.tempMin || 0, modifiers.tempMax || 0);
+                tempRangeText = ` (${tempRange.min}-${tempRange.max})`;
+            }
+        }
+
+        document.getElementById('area-temp').textContent = `${info.temperature}C${tempRangeText}`;
     }
 }
 

@@ -24,6 +24,7 @@ This is how we'll define all the items in the game using ECS. Note that while th
     -   `name`: "Steel Plate"
     -   `description`: "A slab of reinforced steel."
     -   `weight`: 500 (weight in grams)
+    -   `slots`: 1.0 (inventory slots consumed, modules/parts use 0.5)
 -   **RenderableComponent**: What the item looks like.
     -   `char`: "s"
     -   `colour`: "#ccc"
@@ -84,12 +85,14 @@ This is where ECS shines. Equipment is an entity that holds other entities (its 
 The inventory system is managed by the `InventoryComponent`. Any entity can have an inventory by simply adding this component to it. This allows players, crates, and even dead creatures to hold items.
 
 -   **`InventoryComponent`**:
-    -   `capacity`: The number of item slots the inventory can hold.
+    -   `capacity`: The number of item slots the inventory can hold (fractional slots supported).
     -   `maxWeight`: Maximum weight in grams (default 3000g).
     -   `currentWeight`: Current carried weight in grams.
     -   `items`: A Map that stores item data as Map<itemName, { entityId: number, quantity: number }>.
 
 When an item is "picked up", its entity is not destroyed. Instead, its `PositionComponent` is removed (so it no longer appears in the world) and its ID is added to the player's `InventoryComponent`. Dropping an item does the reverse: the ID is removed from the inventory, and a `PositionComponent` is added back to the item entity.
+
+**Important**: Equipped items weigh half as much as carried items (easier to wear than carry). Parts/modules consume 0.5 inventory slots instead of 1.0, allowing for more efficient storage of modular components.
 
 ## 4. Workbench Module System
 
@@ -146,7 +149,8 @@ This is a list of all components currently implemented in the game.
     -   `{ char, colour, layer }` (The `layer` determines draw order, e.g., scenery on layer 0, items on layer 1, creatures on layer 2).
 -   **`SolidComponent`**: A "tag" component. If an entity has this, other entities cannot move into its space. It has no data.
 -   **`PlayerComponent`**: A "tag" component used to identify the player entity for systems like input and HUD updates.
--   **`CreatureStatsComponent`**: Holds all the vital statistics for a creature, including health and vitals.
+-   **`CreatureStatsComponent`**: Holds all the vital statistics for a creature (hunger, rest, stress, comfort).
+-   **`BodyPartsComponent`**: Manages body parts for creatures (player and enemies). Each body part has an efficiency value (0-100) where 100 is full efficiency. Includes methods to damage, heal, add, and remove body parts.
 -   **`InteractableComponent`**: Marks an entity as interactable.
     -   `{ script, scriptArgs }` (The `script` from `SCRIPT_REGISTRY` is triggered on activation).
 -   **`ItemComponent`**: The base component for any item.

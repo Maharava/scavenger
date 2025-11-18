@@ -23,11 +23,13 @@ Equipment items that support module attachment have an `AttachmentSlotsComponent
 ### Modules (Parts)
 
 Modules are items with a `PartComponent` that defines their `part_type`. They can be:
-- Stored in the player's inventory
+- Stored in the player's inventory (consuming 0.5 inventory slots each)
 - Installed in compatible equipment slots
 - Moved between equipment and inventory at workbenches
 
 Modules can also have a `StatModifierComponent` that applies bonuses or penalties to player stats when the equipment is equipped.
+
+**Important**: All modules/parts consume only 0.5 inventory slots instead of the standard 1.0, allowing you to carry more modular components efficiently.
 
 ## Using the Workbench
 
@@ -213,11 +215,11 @@ Potential additions to the module system:
 ## Controls Summary
 
 - **W/S**: Navigate menu up/down
-- **A/D**: Switch between main menu and submenu (when submenu is present)
+- **A/D**: Navigate between menu levels
 - **Space**: Select option
 - **Escape**: Close submenu or menu
-- **I**: Open inventory
-- **E**: Open equipment menu
+- **I**: Open inventory menu
+- **E**: Open equipped items menu (shows currently equipped items with inspect/unequip/module management options)
 
 ## Tips
 
@@ -227,6 +229,8 @@ Potential additions to the module system:
 
 3. **Inspect Before Swapping**: Use the inventory "Inspect" action to view modules on equipped items without needing to visit a workbench.
 
-4. **Weight Matters**: All modules have weight. Lighter modules can help stay under the carrying capacity limit.
+4. **Weight Matters**: All modules have weight. Equipped items weigh nothing, so equipping heavy armor removes it from your carried weight entirely. This encourages equipping items over carrying them in your inventory.
 
 5. **Generic is Good**: The generic modules (Basic, Standard, etc.) work fine for basic functionality. Save specialized modules for when you need specific bonuses.
+
+6. **Slots Are Efficient**: Modules only take 0.5 inventory slots each, so you can carry twice as many modules as regular items in the same space.
