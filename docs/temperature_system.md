@@ -1,5 +1,11 @@
 # Temperature System Design
 
+**⚠️ STATUS: NOT IMPLEMENTED - This is a design document for a future feature**
+
+**Current Implementation:** Area temperatures are defined in map data, and armor has temperature stat modifiers (tempMin/tempMax), but the temperature system itself is not active. No environmental effects are currently applied to the player.
+
+---
+
 ## Overview
 The temperature system affects player comfort, stats, and can lead to damage or death if the player is exposed to extreme temperatures for too long.
 

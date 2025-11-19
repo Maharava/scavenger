@@ -135,4 +135,189 @@ function buildWorld(world, mapId) {
         name: map.name,
         temperature: map.temperature
     };
+
+    // 4. Spawn test enemies for combat testing
+    // TODO: Replace with proper enemy spawn locations from map data
+    // Spawn enemy further from player (player at 20,10, enemy at 5,5 = 20 tiles away)
+    spawnEnemy(world, 'SCAVENGER', 5, 5);
+}
+
+// Helper function to spawn an enemy
+function spawnEnemy(world, enemyDefId, x, y) {
+    const enemyDef = CREATURE_DATA.find(c => c.id === enemyDefId);
+    if (!enemyDef) {
+        console.error(`Enemy definition not found for id: ${enemyDefId}`);
+        return null;
+    }
+
+    const enemyId = world.createEntity();
+    world.addComponent(enemyId, new NameComponent(enemyDef.name));
+    world.addComponent(enemyId, new PositionComponent(x, y));
+    world.addComponent(enemyId, new RenderableComponent(enemyDef.char, enemyDef.colour, 2));
+    world.addComponent(enemyId, new BodyPartsComponent());
+
+    // Set body part efficiencies from definition
+    if (enemyDef.body) {
+        const enemy = world.getEntity(enemyId);
+        const bodyParts = enemy.getComponent('BodyPartsComponent');
+        bodyParts.setPart('head', enemyDef.body.head);
+        bodyParts.setPart('torso', enemyDef.body.torso);
+        bodyParts.setPart('limbs', enemyDef.body.limbs);
+    }
+
+    // Add AI component
+    world.addComponent(enemyId, new AIComponent(
+        enemyDef.aiType || 'aggressive',
+        enemyDef.detectionRange || 10
+    ));
+
+    // Set morale for humanoid enemies
+    if (enemyDef.morale !== undefined) {
+        const enemy = world.getEntity(enemyId);
+        const ai = enemy.getComponent('AIComponent');
+        ai.morale = enemyDef.morale;
+    }
+
+    // Add equipment component
+    world.addComponent(enemyId, new EquippedItemsComponent());
+
+    // Equip weapon if specified
+    if (enemyDef.weapon) {
+        const weaponDef = EQUIPMENT_DATA.find(e => e.id === enemyDef.weapon);
+        if (weaponDef) {
+            const weaponId = world.createEntity();
+            // Create weapon with basic components
+            world.addComponent(weaponId, new ItemComponent(weaponDef.name, weaponDef.weight || 400, weaponDef.volume || 1));
+            world.addComponent(weaponId, new NameComponent(weaponDef.name));
+            world.addComponent(weaponId, new RenderableComponent(weaponDef.char, weaponDef.colour, 1));
+
+            // Add GunComponent
+            if (weaponDef.gun_type) {
+                world.addComponent(weaponId, new GunComponent(weaponDef.gun_type));
+            }
+
+            // Add AttachmentSlotsComponent
+            if (weaponDef.attachment_slots) {
+                const attachmentSlots = new AttachmentSlotsComponent(weaponDef.attachment_slots);
+
+                // For modular weapons (has attachment slots), install random parts
+                if (Object.keys(weaponDef.attachment_slots).length > 0) {
+                    for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
+                        if (slotData.required) {
+                            // Find compatible parts for this slot
+                            const compatibleParts = EQUIPMENT_DATA.filter(part =>
+                                part.part_type === slotData.accepted_type
+                            );
+
+                            if (compatibleParts.length > 0) {
+                                // Pick a random compatible part
+                                const randomPart = compatibleParts[Math.floor(Math.random() * compatibleParts.length)];
+
+                                // Create the part entity
+                                const partEntityId = world.createEntity();
+                                world.addComponent(partEntityId, new ItemComponent(randomPart.name, randomPart.weight || 50, 0.1));
+                                world.addComponent(partEntityId, new NameComponent(randomPart.name));
+                                world.addComponent(partEntityId, new PartComponent(randomPart.part_type));
+
+                                if (randomPart.modifiers && Object.keys(randomPart.modifiers).length > 0) {
+                                    world.addComponent(partEntityId, new StatModifierComponent(randomPart.modifiers));
+                                }
+
+                                // Install it into the slot
+                                slotData.entity_id = partEntityId;
+                            }
+                        }
+                    }
+                }
+
+                world.addComponent(weaponId, attachmentSlots);
+            }
+
+            // For pre-assembled weapons (no attachment slots), add default stats
+            if (weaponDef.gun_type && Object.keys(weaponDef.attachment_slots || {}).length === 0) {
+                const gunStats = new GunStatsComponent();
+                // Default stats based on weapon type
+                switch (weaponDef.gun_type) {
+                    case 'pistol':
+                        gunStats.damageType = 'kinetic';
+                        gunStats.damageAmount = 15;
+                        gunStats.accuracy = 70;
+                        gunStats.range = 5;
+                        gunStats.penetration = 1.0;
+                        gunStats.comfortPenalty = -2;
+                        break;
+                    case 'rifle':
+                        gunStats.damageType = 'kinetic';
+                        gunStats.damageAmount = 20;
+                        gunStats.accuracy = 75;
+                        gunStats.range = 8;
+                        gunStats.penetration = 1.1;
+                        gunStats.comfortPenalty = -3;
+                        break;
+                    case 'energy':
+                        gunStats.damageType = 'energy';
+                        gunStats.damageAmount = 12;
+                        gunStats.accuracy = 80;
+                        gunStats.range = 6;
+                        gunStats.penetration = 0.8;
+                        gunStats.comfortPenalty = 0;
+                        break;
+                    case 'plasma':
+                        gunStats.damageType = 'energy';
+                        gunStats.damageAmount = 25;
+                        gunStats.accuracy = 70;
+                        gunStats.range = 7;
+                        gunStats.penetration = 1.2;
+                        gunStats.comfortPenalty = -1;
+                        break;
+                    default:
+                        gunStats.damageType = 'kinetic';
+                        gunStats.damageAmount = 10;
+                        gunStats.accuracy = 70;
+                        gunStats.range = 5;
+                        gunStats.penetration = 1.0;
+                        gunStats.comfortPenalty = -2;
+                }
+                world.addComponent(weaponId, gunStats);
+            }
+
+            // Equip to hand
+            const enemy = world.getEntity(enemyId);
+            const equipped = enemy.getComponent('EquippedItemsComponent');
+            equipped.hand = weaponId;
+        }
+    }
+
+    // Equip armor if specified
+    if (enemyDef.armor) {
+        const armorDef = EQUIPMENT_DATA.find(e => e.id === enemyDef.armor);
+        if (armorDef) {
+            const armorId = world.createEntity();
+            world.addComponent(armorId, new ItemComponent(armorDef.name, armorDef.weight || 800, armorDef.volume || 2));
+            world.addComponent(armorId, new NameComponent(armorDef.name));
+            world.addComponent(armorId, new RenderableComponent(armorDef.char, armorDef.colour, 1));
+
+            // Add AttachmentSlotsComponent for armor
+            if (armorDef.attachment_slots) {
+                world.addComponent(armorId, new AttachmentSlotsComponent(armorDef.attachment_slots));
+            }
+
+            // Equip to body
+            const enemy = world.getEntity(enemyId);
+            const equipped = enemy.getComponent('EquippedItemsComponent');
+            equipped.body = armorId;
+        }
+    }
+
+    // Add armor stats directly for robots (integrated armor)
+    if (enemyDef.armorStats) {
+        const armorStats = new ArmourStatsComponent();
+        armorStats.durability = enemyDef.armorStats.durability;
+        armorStats.maxDurability = enemyDef.armorStats.maxDurability;
+        armorStats.resistances = enemyDef.armorStats.resistances;
+        world.addComponent(enemyId, armorStats);
+    }
+
+    console.log(`Spawned enemy: ${enemyDef.name} at (${x}, ${y})`);
+    return enemyId;
 }

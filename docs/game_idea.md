@@ -1,23 +1,29 @@
 # Scavenger: Game Idea
 
+**Development Status:** Early development - Core systems (ECS, inventory, equipment, combat) are implemented. Ship, expedition, and procedural generation systems are planned for future development.
+
 ## Concept
 
 Scavenger is a rogue-like game focused on exploration, survival, and resource management within a procedurally generated universe. Players operate from a persistent home base – a space ship – venturing out to various hazardous locations to scavenge for resources and technology. The core loop involves preparing for expeditions, exploring dangerous environments, and returning to the ship to upgrade and survive.
 
+**Note:** Currently, the game features a single hardcoded map for testing. The full expedition/ship loop is planned for future implementation.
+
 ## Core Gameplay Loop
 
-1.  **Preparation (Ship Phase):**
+**⚠️ Ship Phase and Expedition System: NOT YET IMPLEMENTED**
+
+1.  **Preparation (Ship Phase):** *(Planned)*
     *   **Crafting & Upgrading:** Use scavenged resources to craft new equipment, upgrade the ship's capabilities (e.g., survival systems, cargo capacity), and improve the player's gear.
     *   **Survival Management:** Manage the ship's resources (fuel, oxygen, food) which are consumed during travel and exploration.
     *   **Expedition Planning:** Choose a destination from procedurally generated locations, considering its potential rewards and known hazards.
 
-2.  **Exploration (Location Phase):
-    *   **Procedural Generation:** Each location is uniquely generated, offering varied layouts, challenges, and loot.
-    *   **Scavenging:** Discover and collect resources, components, and unique items.
-    *   **Survival Mechanics:** Players must contend with environmental hazards (e.g., extreme temperatures, radiation) and personal needs (hunger, thirst, oxygen). Failure to manage these leads to health degradation.
-    *   **Combat/Avoidance:** Encounter hostile entities or environmental traps. Players can choose to engage, avoid, or use stealth.
+2.  **Exploration (Location Phase):** *(Partially Implemented)*
+    *   **Procedural Generation:** *(Not implemented - currently using hardcoded maps)* Each location is uniquely generated, offering varied layouts, challenges, and loot.
+    *   **Scavenging:** ✅ Implemented - Discover and collect resources, components, and unique items.
+    *   **Survival Mechanics:** ⚠️ Partial - Survival stats (hunger, rest, stress, comfort) exist but don't degrade over time. Environmental hazards (temperature, radiation) are designed but not active.
+    *   **Combat/Avoidance:** ✅ Implemented - Encounter hostile entities. Turn-based combat system is functional.
 
-3.  **Consequence (Death & Return):**
+3.  **Consequence (Death & Return):** *(Not Implemented)*
     *   **Permadeath (Expedition-wise):** If the player dies during an expedition, they are automatically returned to their ship. However, all items and resources collected during that expedition are lost. This creates a high-stakes, risk-reward dynamic.
     *   **Ship Persistence:** The ship and its upgrades remain, providing a sense of persistent progression despite expedition failures.
 
@@ -29,18 +35,33 @@ Scavenger is a rogue-like game focused on exploration, survival, and resource ma
 
 ## Key Features
 
-*   **Procedurally Generated Locations:** Infinite replayability with diverse biomes and challenges.
-*   **Persistent Home Base (Space Ship):** A hub for crafting, upgrading, and strategic planning.
-*   **Survival Mechanics:** Hunger, thirst, temperature, oxygen, radiation.
-*   **Risk/Reward Gameplay:** High stakes for expeditions with significant losses upon death.
-*   **Modular Crafting System:** Build and customize equipment and ship modules.
-*   **Dynamic Events:** Unpredictable events during expeditions or while on the ship.
+**Currently Implemented:**
+*   ✅ **Modular Equipment System:** Customize weapons and armor with swappable modules at workbenches
+*   ✅ **Turn-Based Combat:** Tactical combat with body part targeting, armor mechanics, and AI behaviors
+*   ✅ **ECS Architecture:** Clean, scalable entity-component-system foundation
+*   ✅ **Inventory Management:** Slot and weight-based inventory with equipment system
+*   ✅ **Survival Stats:** Hunger, rest, stress, and comfort tracking (degradation not yet active)
+*   ✅ **Body Parts System:** Damage tracking for head, torso, and limbs
+
+**Planned for Future:**
+*   ⏳ **Procedurally Generated Locations:** Infinite replayability with diverse biomes and challenges
+*   ⏳ **Persistent Home Base (Space Ship):** A hub for crafting, upgrading, and strategic planning
+*   ⏳ **Environmental Hazards:** Temperature, radiation, oxygen management
+*   ⏳ **Risk/Reward Gameplay:** High stakes for expeditions with significant losses upon death
+*   ⏳ **Crafting System:** Create new items and modules from scavenged materials
+*   ⏳ **Dynamic Events:** Unpredictable events during expeditions or while on the ship
 
 ## Inventory System
 
-The inventory system combines both slot-based and weight-based limitations to simulate realistic carrying capacity.
+**✅ IMPLEMENTED** - The inventory system combines both slot-based and weight-based limitations to simulate realistic carrying capacity.
 
-*   **Item Weight:** All items will have a weight, measured in grams (g).
-*   **Inventory Slots:** The player starts with 4 inventory slots (fractional slots supported). Backpacks and other gear can increase the number of available slots. Modules/parts consume 0.5 slots, allowing for more efficient storage of modular components.
-*   **Max Weight Capacity:** The base maximum weight the character can carry is 3kg (3000g). This capacity can be increased through character upgrades or specific equipment.
-*   **Equipment Weight Bonus:** Equipped items weigh half as much as carried items - it's easier to wear armor than carry it.
+*   **Item Weight:** All items have a weight, measured in grams (g).
+*   **Inventory Slots:** The player starts with 4 inventory slots (fractional slots supported). Modules/parts consume 0.5 slots, allowing for more efficient storage of modular components.
+*   **Max Weight Capacity:** The base maximum weight the character can carry is 3kg (3000g).
+    *   Soft limit: 3000g (no penalties)
+    *   Hard limit: 4500g (150% of base - cannot pick up more)
+*   **Equipment Weight Bonus:** Equipped items weigh 0g (nothing) - it's much easier to wear armor than carry it. This incentivizes equipping items rather than hoarding them in inventory.
+*   **Overencumbrance Penalties:** Carrying more than 3000g results in:
+    *   Combat movement penalty (-1 tile per 1000g over)
+    *   Comfort penalty (-10 per 500g over)
+    *   Dodge disabled (0% dodge chance in combat)

@@ -183,7 +183,9 @@ class InventoryComponent {
         this.capacity = capacity; // Number of inventory slots
         this.maxWeight = maxWeight; // Max weight in grams
         this.currentWeight = 0; // Current carried weight in grams
-        this.items = new Map(); // Map<itemName, { entityId: number, quantity: number }>
+        // Map<string | number, { entityId: number, quantity: number }>
+        // Key is itemName (string) for stackable items, entityId (number) for non-stackable items
+        this.items = new Map();
     }
 
     // Calculate total slots used in inventory
@@ -263,7 +265,10 @@ class InventoryComponent {
         const newWeight = this.getTotalWeight(world) + (itemComponent.weight * itemCount);
         const newSlots = this.getTotalSlotsUsed(world) + (itemComponent.slots * itemCount);
 
-        return newWeight <= this.maxWeight && newSlots <= this.capacity;
+        // Hard limit: 4500g (150% of maxWeight)
+        const HARD_WEIGHT_LIMIT = this.maxWeight * 1.5;
+
+        return newWeight <= HARD_WEIGHT_LIMIT && newSlots <= this.capacity;
     }
 }
 
@@ -446,6 +451,23 @@ class MessageComponent {
     }
 }
 
+// Visual projectile for bullet animations
+class ProjectileComponent {
+    constructor(fromX, fromY, toX, toY, char = '•', colour = '#ff0', speed = 20) {
+        this.fromX = fromX;
+        this.fromY = fromY;
+        this.toX = toX;
+        this.toY = toY;
+        this.currentX = fromX;
+        this.currentY = fromY;
+        this.char = char;
+        this.colour = colour;
+        this.speed = speed;  // Tiles per second
+        this.progress = 0;   // 0 to 1
+        this.lifetime = 0;   // Total time alive
+    }
+}
+
 class NameComponent {
     constructor(name) {
         this.name = name;
@@ -456,6 +478,80 @@ class EquippedItemsComponent {
     constructor() {
         this.hand = null; // Entity ID of equipped weapon
         this.body = null; // Entity ID of equipped armour
+    }
+}
+
+// --- COMBAT COMPONENTS ---
+
+// Marks an entity as being in combat
+class CombatStateComponent {
+    constructor(combatSessionId) {
+        this.combatSessionId = combatSessionId;  // ID of active combat session
+        this.inCombat = true;                    // Quick check flag
+    }
+}
+
+// Tracks turn state and combat modifiers for a combatant
+class CombatantComponent {
+    constructor(movementPerTurn = 4) {
+        this.movementPerTurn = movementPerTurn;  // Tiles per turn (base 4)
+        this.initiativeRoll = 0;                  // Movement + 1d6
+        this.hasActedThisTurn = false;            // True if completed action
+        this.hasMovedThisTurn = false;            // True if moved
+        this.movementUsed = 0;                    // Tiles moved this turn
+        this.stunned = false;                     // Skip next turn
+        this.bleeding = false;                    // Take damage per turn
+        this.infected = 0;                        // Turns remaining of infection
+    }
+}
+
+// Global combat session manager (attached to world entity)
+class CombatSessionComponent {
+    constructor(sessionId, playerInitiated = false) {
+        this.sessionId = sessionId;               // Unique combat ID
+        this.participants = [];                   // [entityId, entityId, ...]
+        this.turnOrder = [];                      // Sorted participant IDs
+        this.activeIndex = 0;                     // Current turn index
+        this.round = 1;                           // Combat round number
+        this.selectedEnemyId = null;              // Currently selected target for shooting
+        this.playerInitiated = playerInitiated;   // True if player started combat (first strike bonus)
+        this.firstStrikeBonusUsed = false;        // Track if first strike bonus already applied
+        this.state = 'active';                    // 'starting', 'active', 'ending'
+    }
+
+    getActiveCombatant() {
+        return this.turnOrder[this.activeIndex];
+    }
+
+    advanceTurn() {
+        this.activeIndex++;
+        if (this.activeIndex >= this.turnOrder.length) {
+            this.activeIndex = 0;
+            this.round++;
+        }
+    }
+}
+
+// Damage event for resolution
+class DamageEventComponent {
+    constructor(sourceId, targetId, amount, damageType, bodyPart = null) {
+        this.sourceId = sourceId;                 // Attacker entity ID
+        this.targetId = targetId;                 // Target entity ID
+        this.amount = amount;                     // Raw damage value
+        this.damageType = damageType;             // 'kinetic', 'energy', 'toxin', 'radiation'
+        this.bodyPart = bodyPart;                 // Target body part or null (auto-roll)
+        this.timestamp = Date.now();              // For event ordering
+    }
+}
+
+// Enemy AI configuration
+class AIComponent {
+    constructor(behaviorType = 'aggressive', detectionRange = 8) {
+        this.behaviorType = behaviorType;         // 'aggressive', 'defensive', 'passive', 'fleeing'
+        this.detectionRange = detectionRange;     // Tiles (line-of-sight required)
+        this.state = 'idle';                      // 'idle', 'patrolling', 'combat', 'fleeing'
+        this.target = null;                       // Target entity ID
+        this.morale = 100;                        // For humanoid enemies (flee at <30)
     }
 }
 

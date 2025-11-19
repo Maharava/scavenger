@@ -1,5 +1,140 @@
 // The main game setup and loop
 
+// --- COMBAT CONSTANTS ---
+
+const COMBAT_CONSTANTS = {
+    // Initiative
+    INITIATIVE_DIE: 6,               // Roll 1d6 for initiative
+
+    // Movement
+    BASE_MOVEMENT: 4,                // Tiles per turn (default)
+
+    // Hit Chance
+    BASE_ACCURACY: 70,               // Base weapon accuracy (%)
+    MIN_HIT_CHANCE: 5,               // Minimum after all modifiers
+    MAX_HIT_CHANCE: 95,              // Maximum after all modifiers
+    OUT_OF_RANGE_PENALTY: 25,        // -25% per tile beyond weapon range
+
+    // Aim Action
+    AIM_BONUS: 15,                   // +15% per aim stack
+    MAX_AIM_STACKS: 2,               // Max 2 stacks (+30% total)
+
+    // Stress Effects on Combat
+    STRESS_OPTIMAL_MIN: 20,          // +10% accuracy
+    STRESS_OPTIMAL_MAX: 40,
+    STRESS_PENALTY_1_MIN: 61,        // -10% accuracy
+    STRESS_PENALTY_1_MAX: 80,
+    STRESS_PENALTY_2_MIN: 81,        // -20% accuracy
+    STRESS_PENALTY_2_MAX: 100,
+
+    // Body Part Damage Effects
+    HEAD_ACCURACY_PENALTY: 20,       // -20% if head < 50%
+    TORSO_ACCURACY_PENALTY: 15,      // -15% if torso < 50%
+    LIMBS_MOVEMENT_THRESHOLD: 70,    // -1 move per 30% below this
+
+    // Dodge
+    BASE_DODGE: 10,                  // 10% dodge chance
+
+    // Melee Fallback
+    UNARMED_DAMAGE: 5,               // Unarmed melee damage
+    UNARMED_ACCURACY: 60,            // Unarmed melee accuracy
+    UNARMED_TYPE: 'kinetic',
+
+    // Status Effects
+    BLEEDING_DAMAGE_PER_TURN: 5,     // Damage from bleeding (torso < 15%)
+    TORSO_BLEEDING_THRESHOLD: 15,    // Torso HP % for bleeding
+    INFECTED_DAMAGE_PER_TURN: 3,     // Toxin damage per turn
+    INFECTED_DURATION: 5,            // Turns until infection ends
+
+    // Enemy Detection
+    HUMANOID_DETECTION: 10,          // Tiles
+    ROBOT_DETECTION: 12,
+    ALIEN_DETECTION: 8,
+    ABERRANT_DETECTION_MIN: 4,       // Random 4-16
+    ABERRANT_DETECTION_MAX: 16,
+
+    // Flee & Morale
+    FLEE_MORALE_THRESHOLD: 30,       // Humanoids flee below this
+
+    // Combat Entry
+    COMBAT_ENTRY_MIN_STRESS: 20,     // Minimum stress when combat starts
+
+    // First Strike
+    FIRST_STRIKE_BONUS: 15           // +15% accuracy if player initiated combat
+};
+
+// --- COMBAT FLAVOR TEXT ---
+
+const COMBAT_FLAVOR = {
+    HIT: [
+        "You hit the",
+        "Your shot connects with",
+        "Direct hit on",
+        "You strike"
+    ],
+    MISS: [
+        "You miss!",
+        "Your shot goes wide!",
+        "You fail to hit the target!",
+        "Your aim was off!"
+    ],
+    DODGE: [
+        "They dodge at the last second!",
+        "They evade your shot!",
+        "They move out of the way!",
+        "Your target dodges!"
+    ],
+    HEAD_50: [
+        "They appear dazed.",
+        "Their eyes are unfocused.",
+        "They're struggling to track you.",
+        "Blood streams from their face.",
+        "They stagger, disoriented."
+    ],
+    HEAD_25: [
+        "They're struggling to focus.",
+        "Their vision is clearly impaired.",
+        "They can barely keep their head up.",
+        "They're swaying unsteadily.",
+        "Severe head trauma is evident."
+    ],
+    TORSO_50: [
+        "They're winded.",
+        "They're breathing heavily.",
+        "They clutch their chest.",
+        "They're favoring their side.",
+        "Their movements are labored."
+    ],
+    TORSO_25: [
+        "They're bleeding heavily.",
+        "Blood pours from their wounds.",
+        "Their chest is a mess of gore.",
+        "They're gasping for air.",
+        "They won't last much longer."
+    ],
+    LIMBS_50: [
+        "They have a pronounced limp.",
+        "They're favoring one arm.",
+        "Their movements are unsteady.",
+        "They're clearly injured.",
+        "One of their limbs isn't working properly."
+    ],
+    LIMBS_25: [
+        "One of their legs isn't working.",
+        "One of their arms isn't working.",
+        "They drag a useless limb.",
+        "They can barely move.",
+        "They're crippled, but still fighting."
+    ]
+};
+
+// Helper function to get random flavor text
+function getRandomFlavor(category) {
+    const messages = COMBAT_FLAVOR[category];
+    if (!messages || messages.length === 0) return "";
+    return messages[Math.floor(Math.random() * messages.length)];
+}
+
 // --- SCRIPT & ACTION REGISTRIES ---
 
 function closeTopMenu(world) {
@@ -14,6 +149,18 @@ function closeTopMenu(world) {
             menu.options = null;
         }
         menuEntity.removeComponent('MenuComponent');
+    }
+}
+
+// Helper function to get the correct inventory key for an item
+// Stackable items use name as key, non-stackable items use entityId
+function getInventoryKey(itemEntity) {
+    const stackable = itemEntity.getComponent('StackableComponent');
+    if (stackable) {
+        const itemComponent = itemEntity.getComponent('ItemComponent');
+        return itemComponent.name; // Stackable: key by name
+    } else {
+        return itemEntity.id; // Non-stackable: key by entityId
     }
 }
 
@@ -116,7 +263,12 @@ function calculateArmourStats(world, armourEntity) {
 
     // Default durability if none specified
     if (stats.maxDurability === 0) {
-        stats.maxDurability = 100;
+        // Check if required slots are filled
+        if (!isEquipmentValid(world, armourEntity)) {
+            stats.maxDurability = 0; // Incomplete armor has no durability
+        } else {
+            stats.maxDurability = 100; // Complete armor with no durability modifiers gets default
+        }
     }
 
     return stats;
@@ -373,20 +525,23 @@ const MENU_ACTIONS = {
         if (equipped[slot]) {
             const currentEquipped = game.world.getEntity(equipped[slot]);
             if (currentEquipped) {
-                const currentItem = currentEquipped.getComponent('ItemComponent');
                 // Check inventory space
                 if (!inventory.canAddItem(game.world, currentEquipped, 1)) {
                     game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
                     closeTopMenu(game.world);
                     return;
                 }
-                inventory.items.set(currentItem.name, { entityId: currentEquipped.id, quantity: 1 });
+                // Add old equipment to inventory using correct key
+                const oldKey = getInventoryKey(currentEquipped);
+                inventory.items.set(oldKey, { entityId: currentEquipped.id, quantity: 1 });
             }
         }
 
         // Equip new item (remove from inventory slots but weight still counts)
         equipped[slot] = itemEntity.id;
-        inventory.items.delete(itemComponent.name);
+        // Delete from inventory using correct key
+        const newKey = getInventoryKey(itemEntity);
+        inventory.items.delete(newKey);
         game.world.addComponent(player.id, new MessageComponent(`Equipped ${itemComponent.name}!`, 'green'));
 
         // If inventory is now empty, close the menu
@@ -421,9 +576,10 @@ const MENU_ACTIONS = {
             return;
         }
 
-        // Unequip item
+        // Unequip item and add to inventory using correct key
         equipped[slot] = null;
-        inventory.items.set(itemComponent.name, { entityId: itemEntity.id, quantity: 1 });
+        const inventoryKey = getInventoryKey(itemEntity);
+        inventory.items.set(inventoryKey, { entityId: itemEntity.id, quantity: 1 });
         game.world.addComponent(player.id, new MessageComponent(`Unequipped ${itemComponent.name}!`, 'green'));
         // Re-open the inventory menu to refresh its contents
         SCRIPT_REGISTRY['openInventoryMenu'](game, player);
@@ -602,12 +758,18 @@ const MENU_ACTIONS = {
 
         const itemComponent = equipmentEntity.getComponent('ItemComponent');
         const attachmentSlots = equipmentEntity.getComponent('AttachmentSlotsComponent');
+        const inCombat = player.hasComponent('CombatStateComponent');
 
         const submenuOptions = [
-            { label: 'Inspect', action: 'inspect_item', actionArgs: equipmentEntity },
-            { label: 'Unequip', action: 'unequip_equipped_item', actionArgs: equipmentEntity },
-            { label: 'Exit', action: 'close_submenu' }
+            { label: 'Inspect', action: 'inspect_item', actionArgs: equipmentEntity }
         ];
+
+        // Only allow unequipping outside of combat
+        if (!inCombat) {
+            submenuOptions.push({ label: 'Unequip', action: 'unequip_equipped_item', actionArgs: equipmentEntity });
+        }
+
+        submenuOptions.push({ label: 'Exit', action: 'close_submenu' });
 
         // Set submenu1 and switch to it
         menu.submenu1 = { title: itemComponent.name, options: submenuOptions };
@@ -639,9 +801,10 @@ const MENU_ACTIONS = {
             return;
         }
 
-        // Unequip item
+        // Unequip item and add to inventory using correct key
         equipped[slot] = null;
-        inventory.items.set(itemComponent.name, { entityId: equipmentEntity.id, quantity: 1 });
+        const inventoryKey = getInventoryKey(equipmentEntity);
+        inventory.items.set(inventoryKey, { entityId: equipmentEntity.id, quantity: 1 });
         game.world.addComponent(player.id, new MessageComponent(`Unequipped ${itemComponent.name}!`, 'green'));
 
         // Refresh the equipment view
@@ -832,12 +995,15 @@ const MENU_ACTIONS = {
         }
 
         // Find compatible parts in inventory
-        for (const [itemName, itemData] of inventory.items) {
+        for (const [itemKey, itemData] of inventory.items) {
             const itemEntity = game.world.getEntity(itemData.entityId);
             const partComponent = itemEntity.getComponent('PartComponent');
 
             if (partComponent && partComponent.part_type === slotData.accepted_type) {
-                const label = slotData.entity_id ? `Swap with ${itemName}` : `Install ${itemName}`;
+                // Get actual item name (itemKey might be entityId for non-stackable items)
+                const itemComponent = itemEntity.getComponent('ItemComponent');
+                const actualItemName = itemComponent ? itemComponent.name : itemKey;
+                const label = slotData.entity_id ? `Swap with ${actualItemName}` : `Install ${actualItemName}`;
                 submenuOptions.push({
                     label: label,
                     action: 'swap_module',
@@ -929,8 +1095,6 @@ const MENU_ACTIONS = {
         if (slotData.entity_id) {
             const oldPart = game.world.getEntity(slotData.entity_id);
             if (oldPart) {
-                const oldPartItem = oldPart.getComponent('ItemComponent');
-
                 // Check inventory space if we're installing a new part (swapping)
                 if (args.newPart && !inventory.canAddItem(game.world, oldPart, 1)) {
                     game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
@@ -938,8 +1102,9 @@ const MENU_ACTIONS = {
                     return;
                 }
 
-                // Add old part to inventory
-                inventory.items.set(oldPartItem.name, { entityId: oldPart.id, quantity: 1 });
+                // Add old part to inventory using correct key
+                const oldPartKey = getInventoryKey(oldPart);
+                inventory.items.set(oldPartKey, { entityId: oldPart.id, quantity: 1 });
             }
         }
 
@@ -947,7 +1112,9 @@ const MENU_ACTIONS = {
         if (args.newPart) {
             const newPartItem = args.newPart.getComponent('ItemComponent');
             attachmentSlots.slots[args.slotName].entity_id = args.newPart.id;
-            inventory.items.delete(newPartItem.name);
+            // Delete from inventory using correct key
+            const newPartKey = getInventoryKey(args.newPart);
+            inventory.items.delete(newPartKey);
             game.world.addComponent(player.id, new MessageComponent(`Installed ${newPartItem.name}!`, 'green'));
         } else {
             // Just removing the module
@@ -993,6 +1160,7 @@ const SCRIPT_REGISTRY = {
 
         if (stackableComponent) {
             // Check if item already exists in inventory and can be stacked
+            // Stackable items use name as key
             if (inventory.items.has(itemName)) {
                 const existingStack = inventory.items.get(itemName);
                 if (existingStack.quantity < stackableComponent.stackLimit) {
@@ -1012,8 +1180,10 @@ const SCRIPT_REGISTRY = {
 
         // If not stackable, or stackable but no existing stack or existing stack is full
         if (inventory.canAddItem(game.world, self, 1)) {
-            // Add to inventory as a new entry (either new stackable or non-stackable)
-            inventory.items.set(itemName, { entityId: self.id, quantity: stackableComponent ? 1 : 1 });
+            // Add to inventory as a new entry
+            // Use appropriate key: name for stackables, entityId for non-stackables
+            const inventoryKey = getInventoryKey(self);
+            inventory.items.set(inventoryKey, { entityId: self.id, quantity: stackableComponent ? 1 : 1 });
             self.removeComponent('PositionComponent');
             self.removeComponent('RenderableComponent');
             game.world.addComponent(player.id, new MessageComponent(`Picked up ${itemName}`));
@@ -1032,8 +1202,11 @@ const SCRIPT_REGISTRY = {
         }
 
         const menuOptions = [];
-        for (const [itemName, itemData] of inventory.items) {
+        // Iterate over inventory items (key can be name for stackables or entityId for non-stackables)
+        for (const [inventoryKey, itemData] of inventory.items) {
             const itemEntity = game.world.getEntity(itemData.entityId);
+            if (!itemEntity) continue; // Skip if entity no longer exists
+
             const itemComponent = itemEntity.getComponent('ItemComponent');
             let label = itemComponent.name;
             if (itemData.quantity > 1) {
@@ -1072,7 +1245,8 @@ const SCRIPT_REGISTRY = {
         const equipableItems = [];
 
         // Add inventory items that are modular equipment
-        for (const [itemName, itemData] of inventory.items) {
+        // Iterate over inventory items (key can be name for stackables or entityId for non-stackables)
+        for (const [inventoryKey, itemData] of inventory.items) {
             const itemEntity = game.world.getEntity(itemData.entityId);
             if (itemEntity && itemEntity.hasComponent('EquipmentComponent') && itemEntity.hasComponent('AttachmentSlotsComponent')) {
                 equipableItems.push(itemEntity);
@@ -1134,6 +1308,10 @@ class Game {
         this.world = new World();
         this.world.game = this; // Systems can access game globals via the world
 
+        // Make world and game accessible from browser console for debugging
+        window.world = this.world;
+        window.game = this;
+
         this.mapInfo = {}; // Will be populated by the world builder
         this.lastFrameTime = 0;
         this.messageSystem = new MessageSystem(); // Instantiate MessageSystem here
@@ -1147,6 +1325,13 @@ class Game {
         this.world.registerSystem(new InteractionSystem());
         this.world.registerSystem(new MovementSystem());
         this.world.registerSystem(new ComfortSystem());
+        // Combat systems
+        this.world.registerSystem(new CombatSystem());
+        this.world.registerSystem(new ActionResolutionSystem());
+        this.world.registerSystem(new DamageSystem());
+        this.world.registerSystem(new CombatAISystem());
+        this.world.registerSystem(new ProjectileSystem());
+        // UI systems
         this.world.registerSystem(new HudSystem());
         this.world.registerSystem(new RenderSystem());
         // MessageSystem is updated manually after world.update() to ensure proper message ordering
@@ -1177,21 +1362,51 @@ class Game {
 
     updateAreaHud() {
         const info = this.mapInfo;
-        document.getElementById('area-name').textContent = info.name || 'Area';
-
-        // Get player's comfortable temperature range
         const player = this.world.query(['PlayerComponent'])[0];
-        let tempRangeText = '';
-        if (player) {
-            const stats = player.getComponent('CreatureStatsComponent');
-            if (stats) {
-                const modifiers = getEquipmentModifiers(this.world, player);
-                const tempRange = stats.getComfortTempRange(modifiers.tempMin || 0, modifiers.tempMax || 0);
-                tempRangeText = ` (${tempRange.min}-${tempRange.max})`;
-            }
-        }
+        const inCombat = player && player.hasComponent('CombatStateComponent');
 
-        document.getElementById('area-temp').textContent = `${info.temperature}C${tempRangeText}`;
+        if (inCombat) {
+            // Show combat status
+            const combatSystem = this.world.systems.find(s => s.constructor.name === 'CombatSystem');
+            if (combatSystem && combatSystem.activeCombatSession) {
+                const activeId = combatSystem.activeCombatSession.getActiveCombatant();
+                const isPlayerTurn = activeId === player.id;
+
+                if (isPlayerTurn) {
+                    const combatant = player.getComponent('CombatantComponent');
+                    const movementSystem = this.world.systems.find(s => s instanceof MovementSystem);
+                    let movementMax = 4;
+                    if (combatant && movementSystem) {
+                        movementMax = movementSystem.calculateMovementMax(this.world, player, combatant);
+                    }
+                    const movementUsed = combatant ? combatant.movementUsed : 0;
+
+                    document.getElementById('area-name').textContent = `COMBAT - Round ${combatSystem.activeCombatSession.round} (Movement: ${movementUsed}/${movementMax})`;
+                    document.getElementById('area-temp').textContent = 'Space: fire | R: target | F: flee | E: end turn';
+                } else {
+                    const activeEntity = this.world.getEntity(activeId);
+                    const name = activeEntity ? activeEntity.getComponent('NameComponent') : null;
+                    document.getElementById('area-name').textContent = `COMBAT - Enemy Turn: ${name ? name.name : 'Unknown'}`;
+                    document.getElementById('area-temp').textContent = 'Waiting for enemy...';
+                }
+            }
+        } else {
+            // Normal area display
+            document.getElementById('area-name').textContent = info.name || 'Area';
+
+            // Get player's comfortable temperature range
+            let tempRangeText = '';
+            if (player) {
+                const stats = player.getComponent('CreatureStatsComponent');
+                if (stats) {
+                    const modifiers = getEquipmentModifiers(this.world, player);
+                    const tempRange = stats.getComfortTempRange(modifiers.tempMin || 0, modifiers.tempMax || 0);
+                    tempRangeText = ` (${tempRange.min}-${tempRange.max})`;
+                }
+            }
+
+            document.getElementById('area-temp').textContent = `${info.temperature}C${tempRangeText}`;
+        }
     }
 }
 

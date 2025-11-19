@@ -608,5 +608,73 @@ const EQUIPMENT_DATA = [
             "tempMin": 2,
             "tempMax": 2
         }
+    },
+
+    // === ENEMY WEAPONS (PRE-ASSEMBLED) ===
+
+    {
+        "id": "ASSAULT_RIFLE",
+        "name": "Assault Rifle",
+        "char": "R",
+        "colour": "#444",
+        "weight": 800,
+        "equipment_slot": "hand",
+        "gun_type": "rifle",
+        "description": "A military assault rifle. Powerful and accurate.",
+        "attachment_slots": {}  // Pre-assembled, no slots
+    },
+
+    {
+        "id": "LIGHT_LASER",
+        "name": "Light Laser",
+        "char": "l",
+        "colour": "#0ff",
+        "weight": 300,
+        "equipment_slot": "hand",
+        "gun_type": "energy",
+        "description": "A lightweight energy weapon used by scout drones.",
+        "attachment_slots": {}  // Pre-assembled, no slots
+    },
+
+    {
+        "id": "PLASMA_RIFLE",
+        "name": "Plasma Rifle",
+        "char": "P",
+        "colour": "#0f0",
+        "weight": 900,
+        "equipment_slot": "hand",
+        "gun_type": "plasma",
+        "description": "An advanced plasma weapon. Devastating energy damage.",
+        "attachment_slots": {}  // Pre-assembled, no slots
+    },
+
+    // === WEAPON ACCESSORIES ===
+
+    {
+        "id": "RANGE_FINDER",
+        "name": "Range Finder",
+        "char": "r",
+        "colour": "#fa0",
+        "weight": 150,
+        "part_type": "mod_pistol",
+        "description": "An optical range-finding device. Improves accuracy at distance.",
+        "modifiers": {
+            "accuracy": 8,
+            "range": 2
+        }
+    },
+
+    {
+        "id": "GRIP_WARMER",
+        "name": "Grip Warmer",
+        "char": "w",
+        "colour": "#f66",
+        "weight": 80,
+        "part_type": "mod_pistol",
+        "description": "A heated grip module. Improves comfort in cold environments.",
+        "modifiers": {
+            "comfortPenalty": 2,  // Reduces comfort penalty
+            "tempMin": 5  // Helps in cold temps
+        }
     }
 ];

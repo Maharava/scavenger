@@ -1,101 +1,232 @@
-### 1. Damage Calculation (Weapons)
+# Combat System - Missing Features
 
-We need a way for weapons to actually *do* damage, right?
+**Status:** Core combat system is ~60% implemented and functional. This document lists features that are still missing or incomplete.
 
-*   **`WeaponStatsComponent` (New Component):** Let's create a dedicated component for weapons. This would live on the weapon entity and define its core offensive capabilities:
-    ```javascript
-    // On a weapon entity (e.g., a rifle)
-    {
-        type: 'Gun',
-        baseDamage: 15,
-        damageType: 'Physical', // e.g., Physical, Energy, Radiation, Fire
-        range: 5,
-        accuracy: 0.8,
-        fireRate: 1 // Attacks per turn/second
-    }
-    ```
-*   **`StatModifierComponent` on Weapon Parts:** This is where modularity shines! A "Long Barrel" part attached to a rifle could have a `StatModifierComponent` that modifies the weapon's `range` and `accuracy`. A "High-Caliber Chamber" could boost `baseDamage`.
-    ```javascript
-    // On a weapon part entity (e.g., a Long Barrel)
-    {
-        modifiers: {
-            weaponRange: 2,
-            weaponAccuracy: 0.1
-        }
-    }
-    ```
-*   **`DamageCalculationSystem` (New System):** This system would be responsible for taking an attacking entity and its equipped weapon, aggregating all the `WeaponStatsComponent` values and `StatModifierComponent`s from its parts, and calculating the *raw* damage output. It would also consider the attacker's own stats (e.g., a player's 'strength' or 'dexterity' from `CreatureStatsComponent` could further modify damage).
+**Last Updated:** 2025-11-19
 
-### 2. Defense Calculation (Armour)
+---
 
-Now, how do we make sure our scavenger doesn't just melt?
+## What's Already Working ✅
 
-*   **`ArmourStatsComponent` (New Component):** Similar to weapons, armour needs its own stats. This would define its defensive properties:
-    ```javascript
-    // On an armour entity (e.g., a Chest Plate)
-    {
-        type: 'BodyArmour',
-        baseDefense: 10,
-        resistance: { // Damage type resistances
-            Physical: 0.2, // Reduces physical damage by 20%
-            Energy: 0.1
-        },
-        durability: 100 // Armour could degrade
-    }
-    ```
-*   **`StatModifierComponent` on Armour Parts:** A "Ceramic Plate" part could add to `baseDefense` or `Physical` resistance. A "Radiation Lining" part could boost `Radiation` resistance.
-    ```javascript
-    // On an armour part entity (e.g., Ceramic Plate)
-    {
-        modifiers: {
-            armourDefense: 5,
-            physicalResistance: 0.05
-        }
-    }
-    ```
-*   **`DefenseCalculationSystem` (New System):** This system would take the *raw* damage calculated by the `DamageCalculationSystem` and the target's equipped armour (and its parts' modifiers). It would then apply the `baseDefense` and `resistance` values to reduce the incoming damage, resulting in the *final* damage taken.
+**Core Combat:**
+- Turn-based combat with initiative rolls (Movement + 1d6)
+- Enemy detection and combat entry (stress set to minimum 20)
+- First strike advantage tracking
+- Sequential turn processing with death detection
+- Movement limiting per turn (limb damage + weight penalties)
+- Keyboard controls (R=cycle targets, Space=shoot, F=flee, E=end turn, WASD=move)
+- Out-of-range shooting with -25% penalty per tile beyond range
+- Comprehensive hit calculation with stress/damage/range modifiers
+- Body part targeting system (head 10%, torso 50%, limbs 40%)
+- Full armor resistance and passthrough mechanics
+- Armor durability damage
+- Dodge rolls (10% base, 0% when overencumbered)
+- Projectile animations
+- Status effects (bleeding, infected, stunned)
+- Enemy AI with behavior types (aggressive, defensive, fleeing)
+- Morale system for humanoids
+- Flavor text messages (random hit/miss/status descriptions)
+- Combat end conditions (victory/defeat/flee)
+- Q key weapon range visualization
+- Inventory blocking during combat (I key disabled)
 
-### 3. Applying Damage & Health Management
+---
 
-Once we know the final damage, we need to apply it!
+## Missing Features (Prioritized)
 
-*   **`DamageEventComponent` (New Temporary Component):** When an entity takes damage, we don't immediately modify its health. Instead, we add a temporary `DamageEventComponent` to it.
-    ```javascript
-    // Added to a creature entity that just took damage
-    {
-        amount: 12,
-        damageType: 'Physical',
-        sourceEntityId: 123 // Who dealt the damage
-    }
-    ```
-*   **`HealthSystem` (New System):** This system would run every frame (or turn). It would look for any entities with a `DamageEventComponent`. For each one, it would:
-    1.  Subtract the `amount` from the entity's `CreatureStatsComponent.health`.
-    2.  Remove the `DamageEventComponent`.
-    3.  Check if health is <= 0. If so, trigger a 'death' event (e.g., add a `DeathEventComponent` or `DeadComponent`).
-    4.  Handle any other effects, like displaying damage numbers or playing hit animations.
+### 🔴 High Priority - UI/UX Improvements
 
-### 4. Combat Flow (Turn-Based Example)
+**1. End Turn Button**
+- Location: Bottom-right corner
+- Always visible, always clickable
+- Supplements E key (don't remove keyboard control)
+- Shows "End Turn" text in button
 
-Given it's a rogue-like, a turn-based approach makes sense.
+**2. Flee Button**
+- Location: Bottom-right, above End Turn button
+- Grayed out when player is within ANY enemy detection range
+- Normal/clickable when outside ALL enemy detection ranges
+- Tooltip shows: "Must be outside enemy detection range (X tiles)"
+- Supplements F key (don't remove keyboard control)
 
-1.  **Player/AI Action:** An entity decides to attack another.
-2.  **`AttackActionComponent` (New Temporary Component):** The attacking entity gets an `AttackActionComponent` added to it:
-    ```javascript
-    {
-        targetEntityId: 456, // The ID of the creature being attacked
-        weaponEntityId: 789 // The ID of the equipped weapon
-    }
-    ```
-3.  **`CombatSystem` (New System):** This system would process `AttackActionComponent`s:
-    *   It would use the `DamageCalculationSystem` to determine the raw damage from the `weaponEntityId`.
-    *   It would then use the `DefenseCalculationSystem` to determine the final damage to the `targetEntityId`.
-    *   Finally, it would add a `DamageEventComponent` to the `targetEntityId` with the final damage amount.
-    *   It would also handle things like checking for hit/miss based on accuracy, critical hits, etc.
-    *   After processing, it removes the `AttackActionComponent`.
-4.  **`HealthSystem` Processes Damage:** The `HealthSystem` then picks up the `DamageEventComponent` and updates the target's health.
+**3. Mouse Click-to-Shoot**
+- Left-click on enemy entity to shoot
+- Shows hit chance % when hovering over enemy
+- Crosshair cursor appears when hovering enemies
+- Color-coded hit chance display:
+  - White text: Normal (40-79%)
+  - Red text: Low (<40%)
+  - Green text: High (80%+)
+- Out of range shows negative percentage (e.g., "-75%")
+- Supplements Space key (don't remove keyboard control)
 
-### 5. Other Considerations
+**4. Turn Indicator Panel (Top-Left)**
+```
+┌────────────────────────────┐
+│ YOUR TURN! Round 3         │  ← Cyan text for player, yellow for enemy
+│ Movement: 2/4              │  ← Remaining / max movement
+│                            │
+│ Turn Order:                │
+│  ► You                     │  ← Arrow shows current turn
+│    Scavenger               │
+│    Pirate                  │
+└────────────────────────────┘
+```
+- Shows current turn status
+- Shows remaining movement counter
+- Shows turn order list (optional enhancement)
 
-*   **`EquipmentSystem` (New System):** This system would manage equipping and unequipping items. When an item is equipped, it would apply its `StatModifierComponent`s (and those of its parts) to the player's `CreatureStatsComponent`. When unequipped, it would remove them.
-*   **Damage Types & Resistances:** Having different `damageType`s (Physical, Energy, Fire, etc.) and corresponding `resistance` values on `ArmourStatsComponent` and `CreatureStatsComponent` allows for strategic combat and enemy variety.
-*   **Status Effects:** We could introduce `StatusEffectComponent`s (e.g., `Poisoned`, `Burning`, `Stunned`) that systems would process each turn, applying ongoing damage or debuffs.
+**5. Enemy Health Bars**
+- 3 horizontal bars stacked vertically (bottom to top):
+  1. Limbs (bottom, blue)
+  2. Torso (middle, green)
+  3. Head (top, yellow)
+- Bars only visible when damaged (100% = hidden)
+- Bar color intensity fades as efficiency drops
+- Positioned above each enemy sprite
+
+---
+
+### 🟡 Medium Priority - Gameplay Features
+
+**6. Equipment Screen Read-Only Mode**
+- C key already opens equipment during combat ✅
+- **Missing:** Disable unequip/swap buttons (gray them out)
+- **Missing:** Show message if attempted: "Can't change equipment during combat!"
+- Allow inspection only (view stats, modules)
+
+**7. Fleeing Restrictions**
+- **Missing:** Limbs < 30% prevents fleeing
+- Flee button shows: "Too injured to flee!" tooltip
+- F key also blocked when limbs too damaged
+
+**8. Line-of-Sight Detection**
+- **Currently:** Always returns true (placeholder)
+- **Needed:** Bresenham's algorithm for LOS
+- Enemies can't detect through walls
+- Combat doesn't start through walls
+
+**9. Heavy Armor Movement Penalty**
+- **Currently:** Limb damage + weight penalties working
+- **Missing:** Armor-specific movement penalty
+- Heavy armor: -1 movement
+- Light armor: No penalty
+- Integrate with armor stats
+
+---
+
+### 🟢 Low Priority - Polish & Enhancement
+
+**10. Corpse Spawning & Loot**
+- On enemy death: Create corpse interactable
+- Corpse allows looting equipment/inventory
+- Corpse remains on map after combat
+
+**11. Player Death System**
+- On player death: Create corpse at death location
+- Respawn on ship (future ship system)
+- Expedition loot lost (items in inventory)
+- Message: "You died! Returning to ship..."
+
+**12. Item Usage in Combat**
+- Use medkits to heal during combat
+- Use stims for temporary buffs
+- Quick slot system or menu-based usage
+- **Current:** Stub exists in code (line 1687-1692 in systems.js)
+
+**13. Advanced AI Behaviors**
+- Cover usage (humanoids take cover behind solid tiles)
+- Flanking attempts (move to player's sides/back)
+- Tactical positioning (maintain optimal range)
+- Item usage (enemies use medkits/grenades)
+
+**14. Post-Combat Status Persistence**
+- Status effects continue after fleeing
+- Convert combat turns to real-time (6 turns = 30 seconds)
+- Bleeding persists until treated
+- Infected persists for full duration
+
+**15. Enhanced Status Effects**
+- **Slowed:** Movement -2 for 3 turns
+- **Burning:** Damage over time from fire
+- **Poisoned:** Damage over time from toxins
+- **Disoriented:** Accuracy penalty from head damage
+
+**16. Turn Order Panel Details**
+- Show all combatants in initiative order
+- Highlight current active combatant
+- Arrow indicator for active turn
+- Round number display
+
+**17. Enhanced Morale System**
+- Morale affects accuracy (low morale = -accuracy)
+- Surrender option for very low morale enemies
+- Morale recovery over time in combat
+
+---
+
+## Known Bugs to Fix
+
+**None Critical** - All major bugs from earlier development have been resolved:
+- ✅ Fixed: Dead enemies taking turns (death check added)
+- ✅ Fixed: Combat end not detected after AI actions
+
+---
+
+## Design Decisions Made
+
+**Control Philosophy:**
+- **Hybrid input:** Mouse + keyboard, not mouse-only
+- Keyboard shortcuts remain functional (don't remove R, Space, F, E keys)
+- UI buttons supplement keyboard, don't replace it
+- Players can choose their preferred input method
+
+**UI Philosophy:**
+- Show information clearly (hit chances, movement remaining)
+- Hide clutter (health bars only when damaged)
+- Visual feedback for all actions (messages, animations, highlights)
+- Accessible (buttons always visible, tooltips explain states)
+
+**Balance Philosophy:**
+- Combat is fast and deadly
+- No mid-combat healing via inventory (emergency only via items)
+- Stress affects performance (optimal window at 20-40)
+- Armor degrades (encourages smart engagement)
+- Fleeing is viable (not a punishment mechanic)
+
+---
+
+## Implementation Notes
+
+**Files to Modify:**
+1. **systems.js** - RenderSystem (UI elements, mouse events, health bars)
+2. **systems.js** - CombatSystem (fleeing restrictions, armor penalty)
+3. **systems.js** - InputSystem (mouse click handlers, button events)
+4. **index.html** - Add button elements and turn indicator div
+5. **style.css** - Style buttons, turn panel, health bars
+
+**Testing Priorities:**
+1. End Turn / Flee buttons work correctly
+2. Mouse click-to-shoot targets right enemy
+3. Health bars render and update properly
+4. Movement counter displays accurately
+5. Fleeing restrictions work (distance + limb damage)
+6. Equipment screen locks properly during combat
+
+---
+
+## Out of Scope (Not Planned)
+
+These features are explicitly NOT part of the combat system:
+
+- ❌ Crafting system (separate feature)
+- ❌ Temperature damage in combat (environmental system)
+- ❌ Ship-based features (base building)
+- ❌ Procedural generation (world system)
+- ❌ Multiplayer/co-op
+- ❌ Real-time combat mode
+- ❌ Cover system (low priority, maybe later)
+
+---
+
+**For full implementation details of existing combat mechanics, see the code in `systems.js` (CombatSystem, ActionResolutionSystem, DamageSystem, CombatAISystem).**
