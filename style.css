@@ -47,13 +47,6 @@ body {
     font-size: 18px;
 }
 
-.sprite {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    image-rendering: pixelated; /* For crisp pixel art */
-}
-
 #hud-container {
     flex: 1; /* Takes 20% of the width (1/5) */
     background-color: #222;
@@ -165,28 +158,24 @@ body {
     transform: translateX(-50%);
 }
 
+/* Ship resource bars */
+.ship-bar {
+    height: 20px;
+    border: 1px solid #666;
+}
+
+.bar-text {
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
 #hud-bottom div {
     margin-top: 5px;
     color: #0ff; /* Cyan text for area info */
-}
-
-.game-message {
-    position: absolute;
-    background-color: black;
-    border: 1px solid white;
-    color: white;
-    padding: 5px 10px;
-    z-index: 10;
-    text-align: center;
-    /* Position is set dynamically via JavaScript */
-}
-
-.menu-wrapper {
-    z-index: 20;
-    position: relative; /* Make it a positioning context for its children if needed */
-    width: 100%; /* Ensure it spans the width if it's a parent */
-    height: 100%; /* Ensure it spans the height if it's a parent */
-    pointer-events: none; /* Allow clicks to pass through if it's just a wrapper */
 }
 
 /* Details Pane */

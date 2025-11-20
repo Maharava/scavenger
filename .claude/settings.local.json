@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(node:*)",
+      "Bash(dir /B /S *.js)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

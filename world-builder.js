@@ -19,7 +19,7 @@ function buildWorld(world, mapId) {
             let isPlaceholder = map.interactables.some(i => i.x === x && i.y === y);
             // In the future, you might add other placeholders for creatures, items, etc.
 
-            if (char === '+') {
+            if (char === '+' && !isPlaceholder) { // Don't create walls at interactable positions
                 world.addComponent(entity, new RenderableComponent('+', '#666', 0));
                 world.addComponent(entity, new SolidComponent());
             } else if (char === '.' || isPlaceholder) { // Treat placeholder spots as floor
@@ -122,11 +122,58 @@ function buildWorld(world, mapId) {
     world.addComponent(player, new NameComponent(playerDef.name));
     world.addComponent(player, new PositionComponent(map.playerSpawn.x, map.playerSpawn.y));
     world.addComponent(player, new RenderableComponent(playerDef.char, playerDef.colour, 2));
-    world.addComponent(player, new CreatureStatsComponent(50));
-    world.addComponent(player, new BodyPartsComponent());
+
+    // Create stats component with initial hunger at 50%
+    const stats = new CreatureStatsComponent(50);
+    stats.rest = 10; // Set rest to 10% for testing
+    world.addComponent(player, stats);
+
+    // Create body parts and set all to 50% for testing
+    const bodyParts = new BodyPartsComponent();
+    bodyParts.setPart('head', 50);
+    bodyParts.setPart('torso', 50);
+    bodyParts.setPart('limbs', 50);
+    world.addComponent(player, bodyParts);
+
     world.addComponent(player, new InventoryComponent());
     world.addComponent(player, new EquippedItemsComponent());
     world.addComponent(player, new ComfortModifiersComponent());
+
+    // Add TimeComponent - start time at 00:00 (midnight)
+    world.addComponent(player, new TimeComponent(0, 0));
+
+    // Add FacingComponent - player starts facing down
+    world.addComponent(player, new FacingComponent('down'));
+
+    // Add Rice Patties to player inventory for testing (3 patties)
+    const playerEntity = world.getEntity(player);
+    const playerInventory = playerEntity.getComponent('InventoryComponent');
+
+    // Create Rice Patty entities and add to inventory
+    for (let i = 0; i < 3; i++) {
+        const riceDef = INTERACTABLE_DATA.find(item => item.id === 'RICE_PATTY');
+        if (riceDef) {
+            const riceEntity = world.createEntity();
+            world.addComponent(riceEntity, new ItemComponent(riceDef.name, '', riceDef.weight || 0));
+            world.addComponent(riceEntity, new ConsumableComponent(riceDef.scriptArgs.effect, riceDef.scriptArgs.value));
+            world.addComponent(riceEntity, new StackableComponent(1, 99));
+            world.addComponent(riceEntity, new NameComponent(riceDef.name));
+
+            // Add to inventory (stackable items use name as key)
+            if (playerInventory.items.has(riceDef.name)) {
+                const existingStack = playerInventory.items.get(riceDef.name);
+                existingStack.quantity++;
+            } else {
+                playerInventory.items.set(riceDef.name, { entityId: riceEntity, quantity: 1 });
+            }
+        }
+    }
+
+    // Create ship entity if this is the SHIP map
+    if (mapId === 'SHIP') {
+        const ship = world.createEntity();
+        world.addComponent(ship, new ShipComponent(100, 100)); // 100L water, 100L fuel
+    }
 
     // Store map metadata in a global entity or directly in the world?
     // For now, let's attach it to the game object, which systems can access.
@@ -139,7 +186,10 @@ function buildWorld(world, mapId) {
     // 4. Spawn test enemies for combat testing
     // TODO: Replace with proper enemy spawn locations from map data
     // Spawn enemy further from player (player at 20,10, enemy at 5,5 = 20 tiles away)
-    spawnEnemy(world, 'SCAVENGER', 5, 5);
+    // Don't spawn enemies on the SHIP map
+    if (mapId !== 'SHIP') {
+        spawnEnemy(world, 'SCAVENGER', 5, 5);
+    }
 }
 
 // Helper function to spawn an enemy

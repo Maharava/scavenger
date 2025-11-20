@@ -40,6 +40,18 @@
                 <div>
                     <span id="area-temp"></span>
                 </div>
+                <div id="ship-resources-container" style="display: none; margin-top: 8px;">
+                    <div id="bar-water" class="bar ship-bar" style="background-color: #004488;">
+                        <div class="bar-fill" style="background-color: #0088ff;">
+                            <span class="bar-text">W: <span id="water-amount">100</span>L</span>
+                        </div>
+                    </div>
+                    <div id="bar-fuel" class="bar ship-bar" style="background-color: #440000; margin-top: 4px;">
+                        <div class="bar-fill" style="background-color: #ff0000;">
+                            <span class="bar-text">F: <span id="fuel-amount">100</span>L</span>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="hud-separator">--------------------</div>
             <div id="hud-middle">
@@ -52,16 +64,52 @@
         <p>Please increase your window size to play the game.</p>
         <p>Minimum recommended: 1200px width, 800px height.</p>
     </div>
+    <!-- ECS Foundation -->
     <script src="ecs.js"></script>
     <script src="components.js"></script>
-    <script src="systems.js"></script>
+
+    <!-- Systems -->
+    <script src="systems/render-system.js"></script>
+    <script src="systems/input-system.js"></script>
+    <script src="systems/movement-system.js"></script>
+    <script src="systems/message-system.js"></script>
+    <script src="systems/projectile-system.js"></script>
+    <script src="systems/hud-system.js"></script>
+    <script src="systems/interaction-system.js"></script>
+    <script src="systems/comfort-system.js"></script>
+    <script src="systems/ship-system.js"></script>
+    <script src="systems/time-system.js"></script>
+
+    <!-- Combat Systems -->
+    <script src="systems/combat/combat-system.js"></script>
+    <script src="systems/combat/action-resolution-system.js"></script>
+    <script src="systems/combat/damage-system.js"></script>
+    <script src="systems/combat/combat-ai-system.js"></script>
+
+    <!-- Configuration -->
+    <script src="config/combat-constants.js"></script>
+    <script src="config/game-constants.js"></script>
+
+    <!-- Data -->
+    <script src="data/combat-flavor.js"></script>
+
+    <!-- Utilities -->
+    <script src="utils/helpers.js"></script>
+    <script src="utils/equipment-stats.js"></script>
+
+    <!-- Handlers -->
+    <script src="handlers/menu-actions.js"></script>
+    <script src="handlers/script-registry.js"></script>
+
+    <!-- Game Data -->
     <script src="gamedata/creatures.js"></script>
     <script src="gamedata/interactables.js"></script>
     <script src="gamedata/equipment.js"></script>
     <script src="gamedata/map.js"></script>
+
+    <!-- World Builder & Game Orchestrator -->
     <script src="world-builder.js"></script>
     <script src="game.js"></script>
-    <div id="item-name-overlay-container"></div>
     <div id="menu-overlay-container"></div>
 </body>
 </html>

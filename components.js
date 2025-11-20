@@ -41,7 +41,7 @@ class BodyPartsComponent {
 
     // Set efficiency of a body part
     setPart(partName, value) {
-        this.parts.set(partName, Math.max(0, Math.min(100, value)));
+        this.parts.set(partName, Math.max(MIN_STAT_VALUE, Math.min(MAX_STAT_VALUE, value)));
     }
 
     // Damage a body part by a certain amount
@@ -61,8 +61,8 @@ class BodyPartsComponent {
     }
 
     // Add a new body part
-    addPart(partName, efficiency = 100) {
-        this.parts.set(partName, Math.max(0, Math.min(100, efficiency)));
+    addPart(partName, efficiency = MAX_STAT_VALUE) {
+        this.parts.set(partName, Math.max(MIN_STAT_VALUE, Math.min(MAX_STAT_VALUE, efficiency)));
     }
 
     // Remove a body part (sets efficiency to 0)
@@ -203,7 +203,7 @@ class InventoryComponent {
         return totalSlots;
     }
 
-    // Calculate total weight from all items in inventory AND equipped items
+    // Calculate total weight from inventory items (equipped items are weight-free)
     getTotalWeight(world) {
         let totalWeight = 0;
 
@@ -211,10 +211,9 @@ class InventoryComponent {
         for (const [itemName, itemData] of this.items) {
             const itemEntity = world.getEntity(itemData.entityId);
             if (itemEntity) {
-                const itemComponent = itemEntity.getComponent('ItemComponent');
-                if (itemComponent) {
-                    totalWeight += itemComponent.weight * itemData.quantity;
-                }
+                // Use calculateEquipmentWeight to get weight from parts for modular equipment
+                const equipmentWeight = calculateEquipmentWeight(world, itemEntity);
+                totalWeight += equipmentWeight * itemData.quantity;
             }
         }
 
@@ -223,34 +222,23 @@ class InventoryComponent {
         if (player) {
             const equipped = player.getComponent('EquippedItemsComponent');
             if (equipped) {
-                [equipped.hand, equipped.body].forEach(equipmentId => {
-                    if (equipmentId) {
-                        const equipment = world.getEntity(equipmentId);
-                        if (equipment) {
-                            const itemComponent = equipment.getComponent('ItemComponent');
-                            if (itemComponent) {
-                                // Equipped items weigh nothing (encourages equipping over carrying)
-                                // totalWeight += itemComponent.weight * 0;
-
-                                // Add weight of attached parts (also free when equipped)
-                                const attachmentSlots = equipment.getComponent('AttachmentSlotsComponent');
-                                if (attachmentSlots) {
-                                    for (const slotData of Object.values(attachmentSlots.slots)) {
-                                        if (slotData.entity_id) {
-                                            const part = world.getEntity(slotData.entity_id);
-                                            if (part) {
-                                                const partItem = part.getComponent('ItemComponent');
-                                                if (partItem) {
-                                                    // totalWeight += partItem.weight * 0;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                // Hand slot: Guns retain full weight when equipped
+                if (equipped.hand) {
+                    const handEquipment = world.getEntity(equipped.hand);
+                    if (handEquipment) {
+                        const equipmentWeight = calculateEquipmentWeight(world, handEquipment);
+                        totalWeight += equipmentWeight; // Guns keep full weight
                     }
-                });
+                }
+
+                // Body slot: Armor is weightless when equipped
+                if (equipped.body) {
+                    const bodyEquipment = world.getEntity(equipped.body);
+                    if (bodyEquipment) {
+                        // Armor weight = 0 when equipped (encourages wearing armor)
+                        // totalWeight += 0;
+                    }
+                }
             }
         }
 
@@ -262,7 +250,8 @@ class InventoryComponent {
         const itemComponent = itemEntity.getComponent('ItemComponent');
         if (!itemComponent) return false;
 
-        const newWeight = this.getTotalWeight(world) + (itemComponent.weight * itemCount);
+        const equipmentWeight = calculateEquipmentWeight(world, itemEntity);
+        const newWeight = this.getTotalWeight(world) + (equipmentWeight * itemCount);
         const newSlots = this.getTotalSlotsUsed(world) + (itemComponent.slots * itemCount);
 
         // Hard limit: 4500g (150% of maxWeight)
@@ -298,25 +287,6 @@ class ConsumableComponent {
 class EquipmentComponent {
     constructor(slot) {
         this.slot = slot; // e.g., 'hand', 'body'
-    }
-}
-
-class WearableComponent {
-    constructor(slot) {
-        this.slot = slot; // e.g., 'back'
-    }
-}
-
-class ThrowableComponent {
-    constructor(effect, range) {
-        this.effect = effect; // e.g., 'EXPLODE'
-        this.range = range;
-    }
-}
-
-class KeyComponent {
-    constructor(keyId) {
-        this.keyId = keyId; // e.g., 'CRYOBAY_7'
     }
 }
 
@@ -379,7 +349,7 @@ class ArmourStatsComponent {
         const durabilityPercent = this.getDurabilityPercent();
         // 100% durability = 0% passthrough
         // 0% durability = 100% passthrough
-        return Math.max(0, Math.min(100, 100 - durabilityPercent));
+        return Math.max(MIN_STAT_VALUE, Math.min(MAX_STAT_VALUE, MAX_STAT_VALUE - durabilityPercent));
     }
 }
 
@@ -621,6 +591,128 @@ class BodyPartHitTable {
             }
         }
         return modified;
+    }
+}
+
+// Ship Component - Manages ship resources (Water and Fuel)
+class ShipComponent {
+    constructor(maxWater = 100, maxFuel = 100) {
+        this.water = maxWater;
+        this.maxWater = maxWater;
+        this.fuel = maxFuel;
+        this.maxFuel = maxFuel;
+    }
+
+    // Get water percentage (0-100)
+    getWaterPercent() {
+        return (this.water / this.maxWater) * 100;
+    }
+
+    // Get fuel percentage (0-100)
+    getFuelPercent() {
+        return (this.fuel / this.maxFuel) * 100;
+    }
+
+    // Consume water (returns true if successful, false if not enough)
+    consumeWater(amount) {
+        if (this.water >= amount) {
+            this.water = Math.max(0, this.water - amount);
+            return true;
+        }
+        return false;
+    }
+
+    // Consume fuel (returns true if successful, false if not enough)
+    consumeFuel(amount) {
+        if (this.fuel >= amount) {
+            this.fuel = Math.max(0, this.fuel - amount);
+            return true;
+        }
+        return false;
+    }
+
+    // Add water (e.g., from refilling)
+    addWater(amount) {
+        this.water = Math.min(this.maxWater, this.water + amount);
+    }
+
+    // Add fuel (e.g., from refilling)
+    addFuel(amount) {
+        this.fuel = Math.min(this.maxFuel, this.fuel + amount);
+    }
+}
+
+// Time Component - Tracks game time in 24-hour format
+class TimeComponent {
+    constructor(hours = 0, minutes = 0) {
+        this.hours = hours;       // 0-23
+        this.minutes = minutes;   // 0-59
+        this.totalMinutes = hours * 60 + minutes; // Total minutes since start
+        this.isSleeping = false;  // Flag to indicate if player is sleeping
+        this.sleepEndTime = null; // Time when sleep will end (in total minutes)
+    }
+
+    // Add minutes to the current time
+    addMinutes(minutesToAdd) {
+        this.totalMinutes += minutesToAdd;
+        this.minutes = this.totalMinutes % 60;
+        this.hours = Math.floor(this.totalMinutes / 60) % 24;
+    }
+
+    // Get time as a formatted string (e.g., "0845" or "2130")
+    getFormattedTime() {
+        const h = String(this.hours).padStart(2, '0');
+        const m = String(this.minutes).padStart(2, '0');
+        return h + m;
+    }
+
+    // Get time in total minutes
+    getTotalMinutes() {
+        return this.totalMinutes;
+    }
+
+    // Start sleeping for a duration (in game minutes)
+    startSleep(durationMinutes) {
+        this.isSleeping = true;
+        this.sleepEndTime = this.totalMinutes + durationMinutes;
+    }
+
+    // Check if sleep is complete
+    checkSleepComplete() {
+        if (this.isSleeping && this.totalMinutes >= this.sleepEndTime) {
+            this.isSleeping = false;
+            this.sleepEndTime = null;
+            return true; // Sleep complete
+        }
+        return false;
+    }
+}
+
+// Facing Component - Tracks which direction the player is facing
+// Used for directional interactions (e.g., activating objects in front)
+class FacingComponent {
+    constructor(direction = 'down') {
+        // Direction can be: 'up', 'down', 'left', 'right'
+        this.direction = direction;
+    }
+
+    // Get the offset for the current facing direction
+    getOffset() {
+        switch (this.direction) {
+            case 'up': return { dx: 0, dy: -1 };
+            case 'down': return { dx: 0, dy: 1 };
+            case 'left': return { dx: -1, dy: 0 };
+            case 'right': return { dx: 1, dy: 0 };
+            default: return { dx: 0, dy: 0 };
+        }
+    }
+
+    // Set facing direction from movement input
+    setFromMovement(dx, dy) {
+        if (dy < 0) this.direction = 'up';
+        else if (dy > 0) this.direction = 'down';
+        else if (dx < 0) this.direction = 'left';
+        else if (dx > 0) this.direction = 'right';
     }
 }
 

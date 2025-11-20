@@ -42,7 +42,13 @@ Note: The system supports adding/removing body parts dynamically for mutations, 
 ### Inventory Status
 Below body parts, two lines display inventory information:
 - **Weight**: Current carried weight vs maximum weight in grams (e.g., `Weight: 1200g/3000g`)
-  - Equipped items weigh nothing (encourages equipping over carrying)
+  - The weight of modular equipment (guns, armour) is the sum of its parts.
+  - Guns retain their full weight when equipped.
+  - Armour is weightless when equipped.
+  - Standard component weights are used for consistency:
+    - **Pistol Parts**: Chamber (150g), Barrel (100g), Grip (50g), Mods (100g)
+    - **Rifle Parts**: Chamber (300g), Barrel (200g), Grip (100g), Mods (200g)
+    - **Armour Parts**: Material (600g), Overlay (250g), Underlay (150g). Material is the heaviest component.
 - **Slots**: Current inventory slots used vs total available (e.g., `Slots: 2.5/4`)
   - Regular items consume 1.0 slots
   - Modules/parts consume 0.5 slots

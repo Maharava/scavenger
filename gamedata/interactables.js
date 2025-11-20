@@ -66,5 +66,14 @@ const INTERACTABLE_DATA = [
         "solid": true,
         "script": "openWorkbenchMenu",
         "scriptArgs": {}
+    },
+    {
+        "id": "BED",
+        "name": "Bed",
+        "char": "b",
+        "colour": "#8b4513",
+        "solid": true,
+        "script": "openSleepMenu",
+        "scriptArgs": {}
     }
 ];

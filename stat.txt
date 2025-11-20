@@ -1,0 +1,65 @@
+Player Stats
+============
+- hunger: Hunger level (0-100).
+- rest: Rest/energy level (0-100).
+- stress: Stress level (0-100).
+- comfort: Comfort level (0-100).
+- baseMinComfortTemp: Base minimum comfortable temperature.
+- baseMaxComfortTemp: Base maximum comfortable temperature.
+- head_efficiency: Efficiency of the head (0-100).
+- torso_efficiency: Efficiency of the torso (0-100).
+- limbs_efficiency: Efficiency of the limbs (0-100).
+- inventory_capacity: Number of inventory slots.
+- max_weight: Maximum carry weight.
+- water: Ship water level (0-100).
+- fuel: Ship fuel level (0-100).
+- morale: AI morale, flees if low (0-100).
+
+Weapon Stats
+============
+- damageType: The type of damage (e.g., kinetic, energy).
+- damageAmount: The base damage amount.
+- penetration: Affects enemy armour.
+- accuracy: The base hit chance (0-100).
+- range: The effective range in tiles.
+- comfortPenalty: Penalty to comfort when fired.
+
+Armour Stats
+============
+- durability: Current durability of the armour.
+- maxDurability: Maximum durability of the armour.
+- kinetic_resistance: Resistance to kinetic damage (0-100).
+- energy_resistance: Resistance to energy damage (0-100).
+- toxin_resistance: Resistance to toxin damage (0-100).
+- radiation_resistance: Resistance to radiation damage (0-100).
+- tempMax: Increases maximum comfortable temperature.
+- tempMin: Decreases minimum comfortable temperature.
+
+Combat Stats
+============
+- movementPerTurn: Tiles the entity can move per turn.
+- initiativeRoll: Determines turn order.
+- stunned: Status effect, skips next turn.
+- bleeding: Status effect, damage over time.
+- infected: Status effect, damage over time.
+- AIM_BONUS: Accuracy bonus per aim stack.
+- MAX_AIM_STACKS: Maximum number of aim stacks.
+- STRESS_OPTIMAL_MIN: Lower bound for optimal stress accuracy bonus.
+- STRESS_OPTIMAL_MAX: Upper bound for optimal stress accuracy bonus.
+- STRESS_PENALTY_1_MIN: Lower bound for first level of stress accuracy penalty.
+- STRESS_PENALTY_1_MAX: Upper bound for first level of stress accuracy penalty.
+- STRESS_PENALTY_2_MIN: Lower bound for second level of stress accuracy penalty.
+- STRESS_PENALTY_2_MAX: Upper bound for second level of stress accuracy penalty.
+- HEAD_ACCURACY_PENALTY: Accuracy penalty if head is damaged.
+- TORSO_ACCURACY_PENALTY: Accuracy penalty if torso is damaged.
+- LIMBS_MOVEMENT_THRESHOLD: Threshold for movement penalty when limbs are damaged.
+- BASE_DODGE: Base dodge chance.
+- UNARMED_DAMAGE: Damage when unarmed.
+- UNARMED_ACCURACY: Accuracy when unarmed.
+- BLEEDING_DAMAGE_PER_TURN: Damage per turn from bleeding.
+- TORSO_BLEEDING_THRESHOLD: Torso health percentage to trigger bleeding.
+- INFECTED_DAMAGE_PER_TURN: Damage per turn from infection.
+- INFECTED_DURATION: Duration of infection in turns.
+- FLEE_MORALE_THRESHOLD: Morale threshold for AI to flee.
+- FIRST_STRIKE_BONUS: Accuracy bonus for initiating combat.
+- OUT_OF_RANGE_PENALTY: Accuracy penalty per tile beyond weapon range.
