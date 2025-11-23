@@ -1,6 +1,6 @@
 # Scavenger: Game Idea
 
-**Development Status:** Early development - Core systems (ECS, inventory, equipment, combat) are implemented. Ship, expedition, and procedural generation systems are planned for future development.
+**Development Status:** Core systems complete - ECS architecture, inventory, equipment, combat, time progression, and ship management are fully implemented. Procedural generation and expedition loop are planned for future development.
 
 ## Concept
 
@@ -17,11 +17,11 @@ Scavenger is a rogue-like game focused on exploration, survival, and resource ma
     *   **Survival Management:** Manage the ship's resources (fuel, oxygen, food) which are consumed during travel and exploration.
     *   **Expedition Planning:** Choose a destination from procedurally generated locations, considering its potential rewards and known hazards.
 
-2.  **Exploration (Location Phase):** *(Partially Implemented)*
-    *   **Procedural Generation:** *(Not implemented - currently using hardcoded maps)* Each location is uniquely generated, offering varied layouts, challenges, and loot.
+2.  **Exploration (Location Phase):** *(Mostly Implemented)*
+    *   **Procedural Generation:** ⏳ Not implemented - currently using hardcoded maps. Each location will be uniquely generated in the future.
     *   **Scavenging:** ✅ Implemented - Discover and collect resources, components, and unique items.
-    *   **Survival Mechanics:** ⚠️ Partial - Survival stats (hunger, rest, stress, comfort) exist but don't degrade over time. Environmental hazards (temperature, radiation) are designed but not active.
-    *   **Combat/Avoidance:** ✅ Implemented - Encounter hostile entities. Turn-based combat system is functional.
+    *   **Survival Mechanics:** ✅ Implemented - Survival stats (hunger, rest, stress, comfort) with automatic hunger depletion over time. Body parts heal naturally (2% per day). Environmental hazards (temperature, radiation) are designed but not yet active.
+    *   **Combat/Avoidance:** ✅ Implemented - Encounter hostile entities. Fully functional turn-based combat system with body part targeting, armor mechanics, and AI behaviors.
 
 3.  **Consequence (Death & Return):** *(Not Implemented)*
     *   **Permadeath (Expedition-wise):** If the player dies during an expedition, they are automatically returned to their ship. However, all items and resources collected during that expedition are lost. This creates a high-stakes, risk-reward dynamic.
@@ -38,18 +38,22 @@ Scavenger is a rogue-like game focused on exploration, survival, and resource ma
 **Currently Implemented:**
 *   ✅ **Modular Equipment System:** Customize weapons and armor with swappable modules at workbenches
 *   ✅ **Turn-Based Combat:** Tactical combat with body part targeting, armor mechanics, and AI behaviors
-*   ✅ **ECS Architecture:** Clean, scalable entity-component-system foundation
+*   ✅ **ECS Architecture:** Clean, scalable entity-component-system foundation (fully modularized)
 *   ✅ **Inventory Management:** Slot and weight-based inventory with equipment system
-*   ✅ **Survival Stats:** Hunger, rest, stress, and comfort tracking (degradation not yet active)
-*   ✅ **Body Parts System:** Damage tracking for head, torso, and limbs
+*   ✅ **Time Progression:** Real-time to game-time conversion (30 seconds real = 5 minutes game)
+*   ✅ **Survival Stats:** Hunger, rest, stress, and comfort tracking with automatic hunger depletion
+*   ✅ **Body Parts System:** Damage tracking and natural healing for head, torso, and limbs
+*   ✅ **Sleep System:** Rest restoration with time-skip mechanics (1hr/4hr/8hr options)
+*   ✅ **Ship Resources:** Water and fuel management with consumption tracking
 
 **Planned for Future:**
 *   ⏳ **Procedurally Generated Locations:** Infinite replayability with diverse biomes and challenges
-*   ⏳ **Persistent Home Base (Space Ship):** A hub for crafting, upgrading, and strategic planning
-*   ⏳ **Environmental Hazards:** Temperature, radiation, oxygen management
+*   ⏳ **Expedition Loop:** Full ship-to-location-to-ship gameplay cycle
+*   ⏳ **Environmental Hazards:** Active temperature, radiation, and oxygen effects
 *   ⏳ **Risk/Reward Gameplay:** High stakes for expeditions with significant losses upon death
 *   ⏳ **Crafting System:** Create new items and modules from scavenged materials
 *   ⏳ **Dynamic Events:** Unpredictable events during expeditions or while on the ship
+*   ⏳ **Corpse/Loot System:** Enemy corpses with lootable items
 
 ## Inventory System
 

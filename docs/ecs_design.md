@@ -141,7 +141,9 @@ These generic modules have no stat modifiers, providing a baseline for equipment
 
 ## 5. Full Component List
 
-This is a list of all components currently implemented in the game.
+This is a complete list of all 34 components currently implemented in the game.
+
+### Core Components
 
 -   **`PositionComponent`**: Holds the entity's x/y coordinates in the game world.
     -   `{ x, y }`
@@ -149,38 +151,84 @@ This is a list of all components currently implemented in the game.
     -   `{ char, colour, layer }` (The `layer` determines draw order, e.g., scenery on layer 0, items on layer 1, creatures on layer 2).
 -   **`SolidComponent`**: A "tag" component. If an entity has this, other entities cannot move into its space. It has no data.
 -   **`PlayerComponent`**: A "tag" component used to identify the player entity for systems like input and HUD updates.
--   **`CreatureStatsComponent`**: Holds all the vital statistics for a creature (hunger, rest, stress, comfort).
+-   **`NameComponent`**: Display name for an entity. Used for item name overlays (Q key).
+    -   `{ name }`
+-   **`FacingComponent`**: Tracks which direction an entity is facing.
+    -   `{ direction }` (values: 'up', 'down', 'left', 'right')
+
+### Creature & Stats Components
+
+-   **`CreatureStatsComponent`**: Holds all the vital statistics for a creature.
+    -   `{ hunger, rest, stress, comfort, baseMinComfortTemp, baseMaxComfortTemp }`
 -   **`BodyPartsComponent`**: Manages body parts for creatures (player and enemies). Each body part has an efficiency value (0-100) where 100 is full efficiency. Includes methods to damage, heal, add, and remove body parts.
+    -   `parts<Map>` - Maps body part names to efficiency values
+    -   Methods: `getPart()`, `setPart()`, `damage()`, `heal()`, `addPart()`, `removePart()`, `getDamagedParts()`, `getAllParts()`
+-   **`ComfortModifiersComponent`**: Modifies the creature's temperature comfort range.
+    -   `{ minTempModifier, maxTempModifier }` - Adjustments to comfort temperature thresholds
+
+### Interaction Components
+
 -   **`InteractableComponent`**: Marks an entity as interactable.
     -   `{ script, scriptArgs }` (The `script` from `SCRIPT_REGISTRY` is triggered on activation).
+
+### Item Components
+
 -   **`ItemComponent`**: The base component for any item.
-    -   `{ name, description, weight }` (weight is in grams)
+    -   `{ name, description, weight, slots }` (weight is in grams, slots is inventory space consumed)
 -   **`InventoryComponent`**: Gives an entity the ability to hold other entities (items).
     -   `{ capacity, maxWeight, currentWeight, items<Map> }`
+    -   Methods: `addItem()`, `removeItem()`, `hasItem()`, `getItemQuantity()`, `getTotalWeight()`, `canAddItem()`
 -   **`ActionComponent`**: A temporary component added to an entity to signify it is performing an action. It is usually removed by a system after being processed.
     -   `{ name, payload }` (e.g., `name: 'move'`, `payload: { dx: 1, dy: 0 }`).
 -   **`StackableComponent`**: For items that can be stacked.
     -   `{ quantity }`
 -   **`ConsumableComponent`**: For items that can be consumed.
     -   `{ effect, value }`
+
+### Equipment Components
+
 -   **`EquipmentComponent`**: Marks an item as equippable to a specific slot.
-    -   `{ slot }`
--   **`WearableComponent`**: Marks an item as wearable to a specific slot.
-    -   `{ slot }`
--   **`ThrowableComponent`**: Marks an item as throwable with an effect and range.
-    -   `{ effect, range }`
--   **`KeyComponent`**: Marks an item as a key for specific locks.
-    -   `{ keyId }`
+    -   `{ slot }` (e.g., 'hand', 'body', 'head')
+-   **`EquippedItemsComponent`**: Tracks what items are currently equipped.
+    -   `{ items<Map> }` - Maps equipment slots to entity IDs
+    -   Methods: `equip()`, `unequip()`, `getEquipped()`, `isEquipped()`
 -   **`AttachmentSlotsComponent`**: Defines slots for modular equipment.
     -   `{ slots: { [slotName]: { accepted_type, entity_id } } }`
+
+### Weapon & Armor Components
+
 -   **`GunComponent`**: Marks an item as a gun of a specific type.
-    -   `{ type }`
+    -   `{ type }` (e.g., 'pistol', 'rifle', 'shotgun')
+-   **`GunStatsComponent`**: Calculated stats for a gun based on installed modules.
+    -   `{ damage, accuracy, range, magSize, reloadTime, recoilMultiplier, noiseLevel, modifiers }`
 -   **`ArmourComponent`**: Marks an item as armour of a specific type.
-    -   `{ type }`
+    -   `{ type }` (e.g., 'light', 'medium', 'heavy')
+-   **`ArmourStatsComponent`**: Calculated stats for armor based on installed modules.
+    -   `{ coverage<Map>, modifiers }` - Coverage values per body part (head, torso, limbs)
 -   **`PartComponent`**: Marks an item as a part for modular equipment.
-    -   `{ part_type }`
--   **`StatModifierComponent`**: Applies stat modifiers to an entity.
-    -   `{ modifiers: { [statName]: value } }`
+    -   `{ part_type }` (e.g., 'grip', 'barrel', 'chamber', 'underlay', 'material', 'overlay')
+-   **`StatModifierComponent`**: Applies stat modifiers to equipment or entities.
+    -   `{ modifiers: { [statName]: value } }` (e.g., `{ accuracy: 10, damage: 5 }`)
+
+### Combat Components
+
+-   **`CombatStateComponent`**: Tracks an entity's state during combat.
+    -   `{ initiative, movementPoints, maxMovementPoints, combatStress, inCover }`
+-   **`CombatantComponent`**: Marks an entity as a participant in combat.
+    -   `{ sessionId }` - ID of the combat session this entity is in
+-   **`CombatSessionComponent`**: Manages an active combat session.
+    -   `{ sessionId, participants[], turnOrder[], currentTurnIndex, round, active }`
+-   **`DamageEventComponent`**: Queues a damage event for processing.
+    -   `{ targetEntity, attacker, bodyPart, damage, damageType, armorPenetration }`
+-   **`AIComponent`**: Configures enemy AI behavior.
+    -   `{ behavior, state, detectionRange, chaseRange, attackRange, lastKnownPlayerPos }`
+    -   Behaviors: 'passive', 'defensive', 'aggressive', 'patrol'
+    -   States: 'idle', 'alert', 'chasing', 'attacking', 'retreating'
+-   **`ProjectileComponent`**: Manages projectile movement and rendering.
+    -   `{ startPos, targetPos, currentPos, speed, char, colour, damage, firedBy }`
+
+### UI Components
+
 -   **`MenuComponent`**: Holds the state for an active in-game menu.
     -   `{ title, options[], selectedIndex, submenu, submenuSelectedIndex, activeMenu, highlightedModule, interactable }`
     -   The `submenu` field holds nested menu data for side-by-side menu displays.
@@ -188,23 +236,137 @@ This is a list of all components currently implemented in the game.
 -   **`MessageComponent`**: Holds text and duration for a temporary on-screen message.
     -   `{ text, duration }`
 
-## 5. The Refactoring Plan
+### Ship & Time Components
 
-The transition to the new ECS architecture has been largely completed.
+-   **`ShipComponent`**: Manages the player's ship resources.
+    -   `{ water, maxWater, fuel, maxFuel, location, docked }`
+    -   Methods: `consumeWater()`, `addWater()`, `consumeFuel()`, `addFuel()`
+-   **`TimeComponent`**: Tracks game time progression.
+    -   `{ hour, day, season, totalGameMinutes }`
+    -   Methods: `advanceTime()`, `getTimeString()`, `getDateString()`
 
-1.  **Phase 1: Build the Foundation.** - **Completed.**
-    -   The core ECS classes (`Entity`, `Component`, `System`, `World`) are implemented in `ecs.js`. The `World` manages all entities and systems.
+## 6. System Architecture
 
-2.  **Phase 2: Define Components.** - **Completed.**
-    -   `components.js` contains all necessary component definitions, including those for items, equipment, and UI elements.
+The game uses 14 specialized systems, each handling a specific aspect of the game loop. All systems operate on ECS entities and components.
 
-3.  **Phase 3: Shift the Game Logic.** - **Completed.**
-    -   The main `game.js` file is simplified, creating a `World` instance and orchestrating systems. The old `Room` class and its associated logic have been removed, with world generation handled by `world-builder.js`.
+### Core Systems
 
-4.  **Phase 4: Implement Systems.** - **Completed.**
-    -   `systems.js` contains `RenderSystem`, `InputSystem`, `MovementSystem`, `HudSystem`, `InteractionSystem`, and `MessageSystem`. These systems now operate purely on ECS entities and components.
+-   **`RenderSystem`** (systems/render-system.js - 399 lines)
+    -   Renders all visible entities to the game grid
+    -   Handles layered rendering (scenery → items → creatures)
+    -   Manages player cursor blinking effect
+    -   Updates DOM for visual representation
 
-5.  **Phase 5: Deprecate Old Code.** - **Largely Completed.**
-    -   The old `Entity`, `Creature`, `Interactable`, `Room`, and `Menu` classes have been removed or replaced by the ECS structure. Minor cleanup, such as fully componentizing the player's name in `HudSystem` and externalizing the `SolidComponent` definition for interactables, is still pending.
+-   **`InputSystem`** (systems/input-system.js - 300 lines)
+    -   Processes keyboard input
+    -   Handles movement, combat actions, menu navigation
+    -   Manages inventory and interaction hotkeys
+    -   Supports both normal and combat input modes
 
-This phased approach ensured we could make progress without breaking the game at every step, resulting in a robust and scalable ECS foundation.
+-   **`MovementSystem`** (systems/movement-system.js - 110 lines)
+    -   Processes movement actions
+    -   Collision detection with walls and solid entities
+    -   Bounds checking
+    -   Triggers combat when player approaches enemies
+
+-   **`MessageSystem`** (systems/message-system.js - 27 lines)
+    -   Displays temporary on-screen messages
+    -   Manages message lifetimes and cleanup
+    -   Updates message overlay DOM
+
+-   **`HudSystem`** (systems/hud-system.js - 60 lines)
+    -   Updates the heads-up display
+    -   Shows hunger, rest, stress, comfort bars
+    -   Displays body part status
+    -   Shows inventory and weight information
+
+-   **`InteractionSystem`** (systems/interaction-system.js - 66 lines)
+    -   Handles entity interactions (e.g., picking up items, opening doors)
+    -   Executes scripts from `SCRIPT_REGISTRY`
+    -   Manages interactable activation
+
+### Survival Systems
+
+-   **`ComfortSystem`** (systems/comfort-system.js - 50 lines)
+    -   Manages comfort and stress levels
+    -   Adjusts stress based on comfort thresholds
+    -   Periodic stress updates (every 30 seconds)
+
+-   **`TimeSystem`** (systems/time-system.js - 186 lines) ⭐ NEW
+    -   Advances game time (30 seconds real = 5 minutes game)
+    -   Processes hunger depletion (80% every 12 hours)
+    -   Handles body part healing (2% per day)
+    -   Manages sleep mechanics and time skipping
+    -   Updates water consumption
+
+-   **`ShipSystem`** (systems/ship-system.js - 47 lines)
+    -   Manages ship resources (water, fuel)
+    -   Periodic water consumption
+    -   Updates ship HUD display
+    -   Tracks ship location and docking status
+
+### Combat Systems
+
+-   **`CombatSystem`** (systems/combat/combat-system.js - 417 lines)
+    -   Manages turn-based combat flow
+    -   Handles initiative and turn order
+    -   Processes combat actions (shoot, reload, move, wait, end turn)
+    -   Manages combat session lifecycle
+    -   Detects combat start/end conditions
+
+-   **`ActionResolutionSystem`** (systems/combat/action-resolution-system.js - 276 lines)
+    -   Resolves combat actions into effects
+    -   Calculates hit chances and damage
+    -   Handles body part targeting
+    -   Processes armor penetration
+    -   Creates damage events
+
+-   **`DamageSystem`** (systems/combat/damage-system.js - 185 lines)
+    -   Processes queued damage events
+    -   Applies damage to body parts
+    -   Checks for entity death
+    -   Manages armor damage reduction
+    -   Updates combat messages
+
+-   **`CombatAISystem`** (systems/combat/combat-ai-system.js - 175 lines)
+    -   Controls enemy behavior during combat
+    -   Implements AI states (idle, alert, chasing, attacking)
+    -   Pathfinding and movement toward player
+    -   Decision-making for actions (shoot, move, reload)
+
+-   **`ProjectileSystem`** (systems/projectile-system.js - 43 lines)
+    -   Animates projectile movement
+    -   Handles projectile rendering
+    -   Cleans up projectiles after animation
+
+## 7. The Refactoring Journey
+
+The transition to the new ECS architecture has been **fully completed**.
+
+### ✅ Phase 1: Build the Foundation - **COMPLETE**
+-   The core ECS classes (`Entity`, `Component`, `System`, `World`) are implemented in `ecs.js`. The `World` manages all entities and systems.
+
+### ✅ Phase 2: Define Components - **COMPLETE**
+-   `components.js` contains all 34 component definitions, including items, equipment, combat, UI, ship, and time components.
+
+### ✅ Phase 3: Shift the Game Logic - **COMPLETE**
+-   The main `game.js` file is simplified to just 146 lines, creating a `World` instance and orchestrating systems. The old `Room` class and its associated logic have been removed, with world generation handled by `world-builder.js`.
+
+### ✅ Phase 4: Implement Systems - **COMPLETE**
+-   All 14 systems are implemented in individual files, organized into `systems/` and `systems/combat/` directories. These systems operate purely on ECS entities and components.
+
+### ✅ Phase 5: Modularize Codebase - **COMPLETE**
+-   Monolithic files split into focused modules:
+    - `game.js`: 1,454 → 146 lines (90% reduction)
+    - `systems.js`: 2,096 → eliminated (split into 14 files)
+    - Created `config/`, `data/`, `utils/`, `handlers/` directories
+
+### ✅ Phase 6: Code Cleanup - **MOSTLY COMPLETE**
+-   Removed unused components (WearableComponent, ThrowableComponent, KeyComponent)
+-   Removed deprecated code
+-   Fixed critical bugs
+-   See [cleanup.md](../cleanup.md) for remaining minor items
+
+This phased approach ensured we could make progress without breaking the game at every step, resulting in a robust, scalable, and maintainable ECS foundation.
+
+**The architecture is complete and production-ready.**
