@@ -162,7 +162,7 @@ function buildWorld(world, mapId) {
     bodyParts.setPart('limbs', 50);
     world.addComponent(player, bodyParts);
 
-    world.addComponent(player, new InventoryComponent());
+    world.addComponent(player, new InventoryComponent(4, 13000));
     world.addComponent(player, new EquippedItemsComponent());
     world.addComponent(player, new ComfortModifiersComponent());
 

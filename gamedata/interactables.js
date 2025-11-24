@@ -75,5 +75,19 @@ const INTERACTABLE_DATA = [
         "solid": true,
         "script": "openSleepMenu",
         "scriptArgs": {}
+    },
+    {
+        "id": "MEDKIT",
+        "name": "Medkit",
+        "char": "+",
+        "colour": "#90ee90",
+        "solid": false,
+        "weight": 100,
+        "slots": 0.1,
+        "script": "pickupItem",
+        "scriptArgs": {
+            "effect": "HEAL_BODYPART_MENU", // New effect to open submenu
+            "value": 5 // healing value
+        }
     }
 ];

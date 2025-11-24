@@ -43,3 +43,18 @@ const REST_RESTORE_1HR = 10;  // 1 hour sleep = 10% rest
 const REST_RESTORE_4HR = 40;  // 4 hours sleep = 40% rest
 const REST_RESTORE_8HR = 100; // 8 hours sleep = 100% rest
 const SLEEP_FADE_DURATION_MS = 1000; // 1 second fade to black
+
+// --- Skill System ---
+const SKILL_MAX_LEVEL = 5;
+const SKILL_STRESS_THRESHOLD = 60; // Above this, learning is halved
+const SKILL_LEVELUP_CHANCES = {
+    0: 0.25,  // L0→L1: 25%
+    1: 0.20,  // L1→L2: 20%
+    2: 0.15,  // L2→L3: 15%
+    3: 0.07,  // L3→L4: 7%
+    4: 0.05   // L4→L5: 5%
+};
+// Death regression
+const SKILL_DEATH_REGRESSION_COUNT = 2; // Select 2 skills
+const SKILL_DEATH_BASE_CHANCE = 0.25;   // 25% base
+const SKILL_DEATH_LEVEL_PENALTY = 0.10; // +10% per level

@@ -461,6 +461,7 @@ class EquippedItemsComponent {
         this.body = null; // Entity ID of equipped armour
         this.tool1 = null; // Entity ID of first tool
         this.tool2 = null; // Entity ID of second tool
+        this.backpack = null; // Entity ID of equipped backpack
     }
 }
 
@@ -768,3 +769,24 @@ class FacingComponent {
     }
 }
 
+// In components.js
+class SkillsComponent {
+    constructor() {
+        this.medical = 0;
+        this.cooking = 0;
+        this.farming = 0;
+        this.repair = 0;
+
+        // Track daily/action-based triggers
+        this.triggers = {
+            hasHealedToday: false,
+            hasCookedToday: false,
+            harvestsToday: 0,
+            repairsToday: 0,
+            lastLevelUpDay: { // Prevent multiple levelups in one day
+                farming: -1,
+                repair: -1
+            }
+        };
+    }
+}

@@ -1,108 +1,279 @@
-# Location & Room Ideas (Revision 2)
+# Expedition Locations & Room Reference
 
-This document outlines themed rooms and locations for expeditions. This revision expands on the potential loot in each area, focusing on creating a rich and logical scavenging environment.
+Integrated with Realistic Operational Rooms & Loot Mapping
 
----
+This document expands the seven expedition locations, adding realistic “working” rooms and mapping them to possible loot types. Not every room provides loot — many exist only to make the world feel lived-in and abandoned.
 
-## Crew Quarters & Common Areas
-*Everyday spaces. Loot is generally common, focusing on personal effects, basic supplies, and sustenance.*
+Loot categories referenced from your current item set:
 
-- **Mess Hall / Canteen:**
-  - **Description:** A communal eating area with tables, benches, and automated food dispensers. Often in disarray, with trays and containers left scattered.
-  - **Potential Loot:** `Preserved Food`, `Water`, `Raw Biomass` (from spoiled stores), `Organic Protein`, `Salvaged Components` (from broken dispensers), `Chemical Compounds` (cleaning supplies).
+* Salvaged Components
+* Polymer Resin
+* Basic Electronics
+* Raw Biomass
+* Organic Protein
+* Chemical Compounds
+* Aramid Fibres
+* Thermal Gel
+* Intact Logic Board
+* Repair Paste
+* Titanium Alloy
+* Ceramic-Composite Plate
+* Focusing Lenses
+* High-Capacity Battery
+* Energy-Reflective Film
+* Caustic Organ
+* Bio-Woven Chitin
+* Neuro-conductive Tissue
 
-- **Crew Bunks / Quarters:**
-  - **Description:** Personal living spaces, from spartan bunks to more decorated officer's quarters. Contains lockers, beds, and personal terminals.
-  - **Potential Loot:** `Aramid Fibres` (clothing/bedding), `Preserved Food` (stashed rations), `Water`, `Basic Electronics` (personal devices), `Salvaged Components`.
+Plus occasional suggestions of new ship-upgrade materials when fitting.
 
-- **Recreation Room:**
-  - **Description:** A leisure space with old game tables, large screens, or other entertainment devices.
-  - **Potential Loot:** `Basic Electronics`, `Salvaged Components`, `Intact Logic Board` (from complex game machines).
+============================================================
 
-- **Office Space / Admin:**
-  - **Description:** An administrative area filled with desks, terminals, and data storage cabinets.
-  - **Potential Loot:** `Intact Logic Board`, `Basic Electronics`, `Polymer Resin` (from chair/desk construction), `Salvaged Components`.
+# 1. Lighthouse Array
 
-- **Washrooms / Showers:**
-  - **Description:** A communal sanitation facility, often with plumbing and water reclamation units visible.
-  - **Potential Loot:** `Water`, `Chemical Compounds` (from soap/sterilizer dispensers), `Salvaged Components` (from fixtures).
+A deep-space navigation and transmission station still running automated guidance loops, long after human oversight vanished.
 
----
+## Allowed Rooms
 
-## Medical & Life Support
-*The heart of a station's survival systems. Loot is focused on medical supplies, chemicals, and biological matter.*
+* **Antenna Spire** – Rare electronics; Intact Logic Board, Basic Electronics
+* **Signal Routing Deck** – Basic Electronics, Salvaged Components
+* **AI Memory Vault** – Intact Logic Board, High-Capacity Battery
+* **Splice-In Workstation** – Basic Electronics
+* **Radiological Maintenance Hall** – Salvaged Components, Repair Paste
+* **Observation Glass Walk** – Usually no loot
+* **Server Rack Room** – Intact Logic Board, High-Capacity Battery
+* **Network Switch Hub** – Basic Electronics
+* **Communications Array Control** – Focusing Lenses, Energy-Reflective Film
+* **General Offices** – Polymer Resin, Salvaged Components
+* **Break Room / Mess Hall** – Organic Protein, Preserved food if present
+* **Crew Quarters** – Aramid Fibres, Basic Electronics
+* **Washrooms / Showers** – Water, Chemical Compounds
+* **Dock Control Booth** – Basic Electronics, Salvaged Components
+* **Hydroponic Nutrient Bay** – Raw Biomass, Chemical Compounds
 
-- **Med-Bay / Infirmary:**
-  - **Description:** A medical treatment facility with surgical beds, diagnostic equipment, and medicine lockers. May contain failed experiments or quarantined patients.
-  - **Potential Loot:** `Chemical Compounds`, `Neuro-conductive Tissue`, `Organic Protein`, `Basic Electronics`, `Thermal Gel` (for stasis), `Water` (purified).
+============================================================
 
-- **Cryo-Bay:**
-  - **Description:** A room filled with cryogenic stasis pods, many of which may be shattered, malfunctioning, or containing long-dead occupants.
-  - **Potential Loot:** `Thermal Gel`, `Chemical Compounds`, `High-Capacity Battery`, `Intact Logic Board`, `Basic Electronics`, `Salvaged Components`, `Preserved Food` (emergency rations), `Water`.
+# 2. Cryogenic Ark-Vault
 
-- **Life Support Control:**
-  - **Description:** The core of environmental control. A room containing large water reservoirs, air scrubbers, and complex control terminals.
-  - **Potential Loot:** `Water` (large quantities), `Repair Paste`, `Thermal Gel`, `Intact Logic Board`, `Basic Electronics`, `Salvaged Components`.
+A failed civilian evacuation facility with tens of thousands of stasis pods never launched.
 
-- **Hydroponics / Bio-Dome:**
-  - **Description:** An indoor garden, potentially overgrown with a tangle of strange flora and fauna that has evolved in isolation.
-  - **Potential Loot:** `Raw Biomass`, `Organic Protein`, `Bio-Woven Chitin`, `Caustic Organ`, `Chemical Compounds` (fertilizer/pesticides), `Water`.
+## Allowed Rooms
 
----
+* **Passenger Assembly Hall** – Aramid Fibres, Salvaged Components
+* **Cryo Pod Gallery** – Thermal Gel, High-Capacity Battery
+* **Genetic QC Lab** – Chemical Compounds, Neuro-Conductive Tissue
+* **Backup Life Storage** – Emergency food rations, Chemical Compounds
+* **Cargo Morgue** – Raw Biomass, possibly Caustic Organ
+* **Emergency Freezer Corridor** – Thermal Gel
+* **Infirmary / Recovery Ward** – Chemical Compounds
+* **Autoclave Sterilization Room** – Chemical Compounds
+* **Life Support Monitoring Center** – Intact Logic Board
+* **Water Processing Plant** – Repair Paste, Water
+* **Oxygen Reclamation Room** – Basic Electronics
+* **Dormitory Bunks / Civilian Quarters** – Aramid Fibres, Polymer Resin
+* **Food Storage Pantry** – Organic Protein, Raw Biomass
+* **Guided Evacuation Briefing Room** – Usually no loot
+* **Laundry Unit** – Polymer Resin, Salvaged Components
 
-## Engineering & Maintenance
-*The industrial guts of a location. Heavy machinery, power systems, and raw industrial materials are common here.*
+============================================================
 
-- **Engine Room / Reactor Core:**
-  - **Description:** The power center of the structure, dominated by a large, humming reactor or powerful engines. Often hot and dimly lit.
-  - **Potential Loot:** `High-Capacity Battery`, `Thermal Gel`, `Energy-Reflective Film`, `Titanium Alloy`, `Focusing Lenses` (from control lasers), `Salvaged Components`.
+# 3. Fractured Dyson Scaffold
 
-- **Maintenance Tunnels / Vents:**
-  - **Description:** Cramped, dark service corridors that connect different parts of the station, often with exposed wiring and pipes.
-  - **Potential Loot:** `Repair Paste`, `Salvaged Components`, `Basic Electronics` (from exposed wiring), `Polymer Resin`, `Water` (from leaking pipes).
+A drifting megastructure fragment once designed to reshape solar engineering on stellar scales.
 
-- **Workshop / Fabricator Bay:**
-  - **Description:** A room with machine tools, workbenches, and half-finished projects. Spare parts and raw materials are often stored here.
-  - **Potential Loot:** `Repair Paste`, `Titanium Alloy`, `Polymer Resin`, `Ceramic-Composite Plate`, `Salvaged Components`, `Basic Electronics`.
+## Allowed Rooms
 
-- **Cargo Bay / Loading Dock:**
-  - **Description:** A vast, open space with massive external doors and scattered cargo containers of various sizes. A prime target for any scavenger.
-  - **Potential Loot:** High chance for a wide variety of all common/uncommon materials. Especially `Aramid Fibres`, `Polymer Resin`, `Salvaged Components`, `Titanium Alloy`, and `Preserved Food`.
+* **Nano-Printer Forest** – Polymer Resin, Salvaged Components, Titanium Alloy
+* **Structural Stress Chamber** – Ceramic-Composite Plate, Titanium Alloy
+* **Truss Walkway** – No loot
+* **Supermaterial Weave Loom** – Titanium Alloy, Energy-Reflective Film
+* **Overseer AI Shrine** – High-Capacity Battery, Intact Logic Board
+* **Star-Facing Oculus** – Focusing Lenses
+* **Bulk Materials Silo** – High-value industrial scraps
+* **General Fabricator Line** – Polymer Resin, Salvaged Components
+* **Quality Control Station** – Basic Electronics
+* **Machine Parts Storage** – Titanium Alloy, Repair Paste
+* **Power Relay Chamber** – High-Capacity Battery
+* **Cooling Distribution Node** – Thermal Gel
+* **Maintenance Workshop** – Repair Paste, Salvaged Components
+* **Machining Bay** – Titanium Alloy, Polymer Resin
+* **Lubricant & Consumables Locker** – Chemical Compounds
 
----
+============================================================
 
-## Science & Research
-*High-tech, high-risk areas. These rooms hold the most advanced technology and the most dangerous secrets.*
+# 4. Deep Space Listening Post
 
-- **Research Lab:**
-  - **Description:** A laboratory with research terminals, sample containers, and strange scientific apparatus. May show signs of a catastrophic failure.
-  - **Potential Loot:** `Focusing Lenses`, `Chemical Compounds`, `Intact Logic Board`, `Energy-Reflective Film`, `Neuro-conductive Tissue` (from dissected specimens), `Raw Biomass`.
+A remote intelligence installation once dedicated to analyzing radio, alien transmissions, and deep-space activity.
 
-- **Specimen Containment:**
-  - **Description:** A secure area with reinforced cells or tanks for holding alien creatures. Often, the containment has failed, and the area is a dangerous bio-hazard.
-  - **Potential Loot:** `Bio-Woven Chitin`, `Caustic Organ`, `Neuro-conductive Tissue` (from escaped/dead specimens), `Raw Biomass`, `Ceramic-Composite Plate` (from cell walls), `Chemical Compounds`.
+## Allowed Rooms
 
-- **Server Room:**
-  - **Description:** A climate-controlled room packed with rows of humming server racks, often with complex cooling systems.
-  - **Potential Loot:** `Intact Logic Board`, `Basic Electronics`, `High-Capacity Battery`, `Thermal Gel` (from cooling systems).
+* **Intelligence War Room** – Salvaged Components
+* **Signal Decryption Chamber** – Intact Logic Board, Basic Electronics
+* **Audio Analysis Bay** – Basic Electronics
+* **Black Ops Data Vault** – High-Capacity Battery, Intact Logic Board
+* **Silent Radio Gallery** – No loot (just eerie atmosphere)
+* **Server Rack Room** – Intact Logic Board, High-Capacity Battery
+* **Communications Switch Board** – Basic Electronics
+* **Crew Lockers** – Aramid Fibres
+* **Mess Hall** – Organic Protein, Salvaged Components
+* **Dormitory Wing** – Basic Electronics, Aramid Fibres
+* **Airlock Corridor** – Salvaged Components
+* **Observation Gallery** – No loot
+* **Water Reclamation Bay** – Water, Repair Paste
 
-- **Observatory / Sensor Array:**
-  - **Description:** A room with a large telescope or external sensor dish, used for scanning the cosmos or the planet below.
-  - **Potential Loot:** `Focusing Lenses`, `Energy-Reflective Film`, `Intact Logic Board`, `High-Capacity Battery`.
+============================================================
 
----
+# 5. Mobile Hospital Barge
 
-## Security & Command
-*The nerve center and military facilities of a station. Expect hardened defenses and military-grade equipment.*
+A large-scale disaster relief and mass medical treatment vessel.
 
-- **Bridge / Cockpit:**
-  - **Description:** The command center of the ship or station, with a large viewscreen and multiple control consoles.
-  - **Potential Loot:** `Intact Logic Board`, `High-Capacity Battery`, `Basic Electronics`, `Focusing Lenses` (from targeting displays).
+## Allowed Rooms
 
-- **Armoury:**
-  - **Description:** A secure room for storing weapons and armor. May contain weapon racks, modification benches, and ammo lockers.
-  - **Potential Loot:** `Ceramic-Composite Plate`, `Titanium Alloy`, `Aramid Fibres`, `Repair Paste`, `Chemical Compounds` (weapon cleaning).
+* **Operating Theater** – Basic Electronics, Chemical Compounds
+* **Auto-Surgery Bay** – Intact Logic Board, High-Capacity Battery
+* **Triage Ward** – Medical scraps, Chemical Compounds
+* **Organ Freezer Bank** – Thermal Gel, Organic Tissue (if accessible)
+* **Pharmaceutical Bottling Hall** – Chemical Compounds
+* **VR Therapy Booth** – Basic Electronics
+* **Biohazard Isolation Unit** – Chemical Compounds
+* **Infirmary** – Chemical Compounds
+* **Autoclave Sterilization Chamber** – Chemical Compounds
+* **Life Support Supervisory Room** – Intact Logic Board
+* **Hydroponic Nutrient Plant** – Raw Biomass, Organic Protein
+* **Patient Washrooms** – Chemical Compounds
+* **Medical Supply Warehouse** – Repair Paste, Polymer Resin
+* **Food Preparation Kitchen** – Organic Protein, Raw Biomass
+* **Crew Quarters** – Aramid Fibres
 
-- **Security Checkpoint:**
-  - **Description:** A small, fortified station, often containing broken autoturrets or defensive barriers, and weapon lockers.
-  - **Potential Loot:** `Salvaged Components`, `Basic Electronics`, `Ceramic-Composite Plate`, `Aramid Fibres`.
+============================================================
+
+# 6. Asteroid Civilian Habitat
+
+A rotating living settlement once home to workers, families, schools, and shared living.
+
+## Allowed Rooms
+
+* **Residential Hallway** – Aramid Fibres
+* **Family Quarters** – Polymer Resin, Basic Electronics
+* **Communal Garden Deck** – Raw Biomass, Organic Protein
+* **Hydroponic Market** – Raw Biomass
+* **Children’s Learning Chamber** – Basic Electronics
+* **Recreation Arcade** – Basic Electronics
+* **Shuttle Dock Lobby** – Salvaged Components
+* **Mess Hall** – Preserved Food, Organic Protein
+* **Washrooms** – Chemical Compounds
+* **Gym / Exercise Space** – Little loot
+* **Laundry Unit** – Salvaged Components
+* **Transit Elevator Deck** – Salvaged Components
+* **Maintenance Closet** – Repair Paste
+* **General Offices** – Polymer Resin
+* **Community Stage Hall** – No loot (environmental storytelling)
+
+============================================================
+
+# 7. Corporate Shipyard Node
+
+A manufacturing and assembly platform where civilian and industrial ships were built efficiently and at scale.
+
+## Allowed Rooms
+
+* **Hull Assembly Track** – Titanium Alloy, Salvaged Components
+* **Drone Maintenance Pit** – Salvaged Components, Basic Electronics
+* **Fabrication Control Tower** – Intact Logic Board
+* **Dockside Control** – Basic Electronics
+* **Fleet Accounting Office** – Polymer Resin
+* **Resource Intake Terminal** – Raw industrial salvage
+* **Robotics Assembly Bench** – Salvaged Components, Basic Electronics
+* **Machining Bay** – Titanium Alloy
+* **Surface Treatment Shop** – Chemical Compounds
+* **Freight Handling Gantry** – Salvaged Components
+* **Transit Packaging Shed** – Polymer Resin
+* **Cold Storage Facility** – Chemical Compounds
+* **General Tool Crib** – Repair Paste
+* **Parts Issue Counter** – Salvaged Components
+
+============================================================
+
+# Room Glossary (Brief Explanations)
+
+### Crew & Living
+
+* **Crew Quarters:** Shared sleeping rooms for long-term personnel.
+* **Officer Cabins:** Private rooms for higher command staff.
+* **Dormitory Hall:** High-density sleeping racks such as troop or civilian processing.
+* **Mess Hall:** Communal dining for crews.
+* **Galley:** Kitchen for preparing food.
+* **Pantry:** Storage for edible goods.
+* **Washrooms / Showers:** Basic hygiene facilities.
+* **Locker Room:** Where personal or EVA gear is stored.
+* **Recreation Room:** Common leisure area.
+
+### Administration
+
+* **General Offices:** Clerical work hubs.
+* **Operations Bureau:** Shift scheduling and work dispatch.
+* **Archives:** Records vault.
+* **Meeting Room:** Small briefing space.
+* **Accounting Office:** Tracks resource usage and production.
+
+### Dock & Transit
+
+* **Docking Bay:** Main external harbor for ships.
+* **Airlock Corridor:** Pressure transition section.
+* **Inspection Station:** Customs and import checks.
+* **Control Booth:** Oversees docking operations.
+
+### Medical
+
+* **Infirmary:** Basic health care facility.
+* **Triage Ward:** Quick sorting and categorization of injuries.
+* **Operating Theater:** Surgical suite.
+* **Auto-Surgery Bay:** Fully robotic OR.
+* **Organ Freezer Bank:** Storage for donor material.
+* **Pharmacy Storage:** Medication shelves and chemical stocks.
+
+### Life Support & Engineering
+
+* **Water Processing Plant:** Purification and recycling.
+* **O₂ Scrubber Room:** Carbon extraction and oxygen recovery.
+* **Reactor Chamber:** Primary power generation.
+* **Maintenance Workshop:** Tools and workbenches for repair.
+* **Tool Crib:** Issuing station for equipment.
+* **Cooling Node:** Heat regulation manifold.
+* **Machine Parts Storage:** Spare components.
+
+### Data & Computing
+
+* **Server Rack Room:** Banks of compute systems.
+* **Core Processing Node:** Controls key systems.
+* **Data Vault:** Hardened backup storage.
+* **Communications Array Control:** Handles external signals.
+
+### Industrial & Production
+
+* **Fabricator Line:** Automated assembly conveyor.
+* **Machining Bay:** Subtractive industrial equipment.
+* **Surface Treatment Shop:** Heat/plating chemical finishing.
+* **Robot Assembly Bay:** Builds maintenance drones.
+* **Silo:** Raw material bulk storage.
+
+### Mining / Extraction
+
+* **Ore Crusher Chamber:** Reduces rock to workable size.
+* **Sorting Deck:** Separates ore by grade.
+* **Refining Kiln:** Heating tools to process metals.
+
+============================================================
+
+# Notes on Loot Placement Logic
+
+* **Quarters, offices, cafeterias** → Small tech scraps, clothing fibres, food
+* **Medical rooms** → Chemical Compounds, Thermal Gel, biological materials
+* **Computing/data rooms** → Intact Logic Boards, High-Capacity Batteries
+* **Engineering & industrial areas** → Titanium Alloy, Repair Paste, Polymer Resin
+* **Docks & transit spaces** → Salvaged Components, Basic Electronics
+* **Hydroponics & gardens** → Raw Biomass & Organic Protein
+* **Advanced research spaces** → High-end rare materials (Energy-Reflective Film, etc.)
+
+============================================================
+
