@@ -203,7 +203,7 @@ class InventoryComponent {
         return totalSlots;
     }
 
-    // Calculate total weight from inventory items (equipped items are weight-free)
+    // Calculate total weight from inventory and equipped items
     getTotalWeight(world) {
         let totalWeight = 0;
 
@@ -211,7 +211,6 @@ class InventoryComponent {
         for (const [itemName, itemData] of this.items) {
             const itemEntity = world.getEntity(itemData.entityId);
             if (itemEntity) {
-                // Use calculateEquipmentWeight to get weight from parts for modular equipment
                 const equipmentWeight = calculateEquipmentWeight(world, itemEntity);
                 totalWeight += equipmentWeight * itemData.quantity;
             }
@@ -222,21 +221,33 @@ class InventoryComponent {
         if (player) {
             const equipped = player.getComponent('EquippedItemsComponent');
             if (equipped) {
-                // Hand slot: Guns retain full weight when equipped
+                // Hand slot: Guns retain full weight
                 if (equipped.hand) {
                     const handEquipment = world.getEntity(equipped.hand);
                     if (handEquipment) {
                         const equipmentWeight = calculateEquipmentWeight(world, handEquipment);
-                        totalWeight += equipmentWeight; // Guns keep full weight
+                        totalWeight += equipmentWeight;
                     }
                 }
 
-                // Body slot: Armor is weightless when equipped
+                // Body slot: Armor is weightless
                 if (equipped.body) {
-                    const bodyEquipment = world.getEntity(equipped.body);
-                    if (bodyEquipment) {
-                        // Armor weight = 0 when equipped (encourages wearing armor)
-                        // totalWeight += 0;
+                    // totalWeight += 0;
+                }
+
+                // Tool slots: Tools are 50% weight
+                if (equipped.tool1) {
+                    const tool1Equipment = world.getEntity(equipped.tool1);
+                    if (tool1Equipment) {
+                        const equipmentWeight = calculateEquipmentWeight(world, tool1Equipment);
+                        totalWeight += equipmentWeight * 0.5;
+                    }
+                }
+                if (equipped.tool2) {
+                    const tool2Equipment = world.getEntity(equipped.tool2);
+                    if (tool2Equipment) {
+                        const equipmentWeight = calculateEquipmentWeight(world, tool2Equipment);
+                        totalWeight += equipmentWeight * 0.5;
                     }
                 }
             }
@@ -448,6 +459,47 @@ class EquippedItemsComponent {
     constructor() {
         this.hand = null; // Entity ID of equipped weapon
         this.body = null; // Entity ID of equipped armour
+        this.tool1 = null; // Entity ID of first tool
+        this.tool2 = null; // Entity ID of second tool
+    }
+}
+
+// --- TOOL COMPONENTS ---
+
+class ToolComponent {
+    constructor(toolType, usesRemaining = -1) {
+        this.toolType = toolType;           // 'light', 'scanner', 'cutter', 'medkit', etc.
+        this.usesRemaining = usesRemaining; // -1 = infinite, 0+ = limited uses
+    }
+}
+
+class ToolStatsComponent {
+    constructor(stats = {}) {
+        this.lightRadius = stats.lightRadius || 0;      // Light emission (0 = none)
+        this.scanRange = stats.scanRange || 0;          // Scanner detection range
+        this.effectiveness = stats.effectiveness || 0;  // Tool power (100 = max)
+        this.specialAbility = stats.specialAbility || null;  // Unique ability ID
+    }
+}
+
+// --- LIGHTING COMPONENTS ---
+
+class LightSourceComponent {
+    constructor(radius = 0, active = true) {
+        this.radius = radius;    // Light radius in tiles
+        this.active = active;    // Can be toggled on/off
+    }
+}
+
+class VisibilityStateComponent {
+    constructor() {
+        this.state = 'never_seen';  // 'never_seen', 'revealed', 'lit'
+    }
+}
+
+class MapLightingComponent {
+    constructor(enabled = true) {
+        this.enabled = enabled;  // If false, entire map is lit (ship)
     }
 }
 

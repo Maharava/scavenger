@@ -48,9 +48,33 @@ class RenderSystem extends System {
             return layerA - layerB;
         });
 
+        const lightingEnabled = world.mapLighting && world.mapLighting.enabled;
+
         for (const entity of renderables) {
             const pos = entity.getComponent('PositionComponent');
             const render = entity.getComponent('RenderableComponent');
+            const vis = entity.getComponent('VisibilityStateComponent');
+            const isSolid = entity.hasComponent('SolidComponent');
+
+            if (lightingEnabled && vis) {
+                if (vis.state === 'never_seen') {
+                    // Never seen - don't render anything
+                    continue;
+                }
+
+                if (vis.state === 'revealed') {
+                    // Revealed state - render tiles (layer 0) and solid objects (doors, etc.) in grey
+                    if (render.layer === 0 || isSolid) {
+                        if (pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height) {
+                            grid[pos.y][pos.x] = {
+                                char: render.char,
+                                colour: '#333'
+                            };
+                        }
+                    }
+                    continue;
+                }
+            }
 
             // Check if this is the selected enemy during player's turn
             const isSelectedEnemy = isPlayerTurn && entity.id === selectedEnemyId;

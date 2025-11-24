@@ -9,16 +9,26 @@ const MENU_ACTIONS = {
         const pos = interactable.getComponent('PositionComponent');
         game.world.destroyEntity(interactable.id);
 
+        // Remove from solid cache (door is now open, light can pass)
+        game.world.removeSolidTileFromCache(pos.x, pos.y);
+
         const doorDef = INTERACTABLE_DATA.find(i => i.id === 'DOOR_OPEN');
         const newDoor = game.world.createEntity();
         game.world.addComponent(newDoor, new PositionComponent(pos.x, pos.y));
         game.world.addComponent(newDoor, new RenderableComponent(doorDef.char, doorDef.colour, 1));
         game.world.addComponent(newDoor, new NameComponent(doorDef.name));
         game.world.addComponent(newDoor, new InteractableComponent(doorDef.script, doorDef.scriptArgs));
+        game.world.addComponent(newDoor, new VisibilityStateComponent()); // Add visibility
 
         // Only add SolidComponent if the door definition says it should be solid
         if (doorDef.solid) {
             game.world.addComponent(newDoor, new SolidComponent());
+        }
+
+        // Mark lighting system dirty (LOS has changed)
+        const lightingSystem = game.world.systems.find(s => s.constructor.name === 'LightingSystem');
+        if (lightingSystem) {
+            lightingSystem.markDirty();
         }
 
         closeTopMenu(game.world);
@@ -33,10 +43,19 @@ const MENU_ACTIONS = {
         game.world.addComponent(newDoor, new RenderableComponent(doorDef.char, doorDef.colour, 1));
         game.world.addComponent(newDoor, new NameComponent(doorDef.name));
         game.world.addComponent(newDoor, new InteractableComponent(doorDef.script, doorDef.scriptArgs));
+        game.world.addComponent(newDoor, new VisibilityStateComponent()); // Add visibility
 
         // Only add SolidComponent if the door definition says it should be solid
         if (doorDef.solid) {
             game.world.addComponent(newDoor, new SolidComponent());
+            // Add to solid cache (door is now closed, blocks light)
+            game.world.addSolidTileToCache(pos.x, pos.y);
+        }
+
+        // Mark lighting system dirty (LOS has changed)
+        const lightingSystem = game.world.systems.find(s => s.constructor.name === 'LightingSystem');
+        if (lightingSystem) {
+            lightingSystem.markDirty();
         }
 
         closeTopMenu(game.world);
@@ -405,17 +424,28 @@ const MENU_ACTIONS = {
         const player = game.world.query(['PlayerComponent'])[0];
         if (!player) return;
 
-        const equipment = equipmentEntity.getComponent('EquipmentComponent');
         const itemComponent = equipmentEntity.getComponent('ItemComponent');
         const equipped = player.getComponent('EquippedItemsComponent');
         const inventory = player.getComponent('InventoryComponent');
 
-        if (!equipment || !equipped || !inventory) {
+        if (!equipped || !inventory) {
             closeTopMenu(game.world);
             return;
         }
 
-        const slot = equipment.slot;
+        // Find which slot the item is in
+        let slot = null;
+        if (equipped.hand === equipmentEntity.id) slot = 'hand';
+        else if (equipped.body === equipmentEntity.id) slot = 'body';
+        else if (equipped.tool1 === equipmentEntity.id) slot = 'tool1';
+        else if (equipped.tool2 === equipmentEntity.id) slot = 'tool2';
+
+        if (!slot) {
+             game.world.addComponent(player.id, new MessageComponent(`Error: ${itemComponent.name} not equipped!`, 'red'));
+             closeTopMenu(game.world);
+             return;
+        }
+
 
         // Check inventory space
         if (!inventory.canAddItem(game.world, equipmentEntity, 1)) {
@@ -430,6 +460,34 @@ const MENU_ACTIONS = {
         inventory.items.set(inventoryKey, { entityId: equipmentEntity.id, quantity: 1 });
         game.world.addComponent(player.id, new MessageComponent(`Unequipped ${itemComponent.name}!`, 'green'));
 
+        // Handle light source
+        const light = equipmentEntity.getComponent('LightSourceComponent');
+        if (light) {
+            // Recalculate player's light source based on other equipped items
+            let newLightRadius = BASE_PLAYER_LIGHT_RADIUS;
+            const tool1 = equipped.tool1 ? game.world.getEntity(equipped.tool1) : null;
+            const tool2 = equipped.tool2 ? game.world.getEntity(equipped.tool2) : null;
+
+            if (tool1 && tool1.hasComponent('LightSourceComponent')) {
+                newLightRadius = Math.max(newLightRadius, tool1.getComponent('LightSourceComponent').radius);
+            }
+            if (tool2 && tool2.hasComponent('LightSourceComponent')) {
+                newLightRadius = Math.max(newLightRadius, tool2.getComponent('LightSourceComponent').radius);
+            }
+
+            // Remove all light sources and add the new one
+            const playerLights = player.getComponent('LightSourceComponent');
+            if(playerLights) player.removeComponent('LightSourceComponent');
+            player.addComponent(new LightSourceComponent(newLightRadius, true));
+
+
+            const lightingSystem = game.world.systems.find(s => s instanceof LightingSystem);
+            if (lightingSystem) {
+                lightingSystem.markDirty();
+            }
+        }
+
+
         // Refresh the equipment view
         MENU_ACTIONS['view_equipment'](game);
     },
@@ -443,7 +501,7 @@ const MENU_ACTIONS = {
         const itemComponent = itemEntity.getComponent('ItemComponent');
         const consumable = itemEntity.getComponent('ConsumableComponent');
         const equipment = itemEntity.getComponent('EquipmentComponent');
-        const attachmentSlots = itemEntity.getComponent('AttachmentSlotsComponent');
+        const tool = itemEntity.getComponent('ToolComponent');
 
         const submenuOptions = [];
 
@@ -454,6 +512,11 @@ const MENU_ACTIONS = {
 
         if (equipment) {
             submenuOptions.push({ label: 'Equip', action: 'equip_item', actionArgs: itemEntity });
+        }
+
+        if (tool) {
+            submenuOptions.push({ label: 'Equip to Tool 1', action: 'equip_tool', actionArgs: { itemEntity: itemEntity, slot: 'tool1' } });
+            submenuOptions.push({ label: 'Equip to Tool 2', action: 'equip_tool', actionArgs: { itemEntity: itemEntity, slot: 'tool2' } });
         }
 
         // Always offer inspect option
@@ -467,6 +530,69 @@ const MENU_ACTIONS = {
         menu.submenu2 = null; // Clear deeper submenus
         menu.activeMenu = 'submenu1';
         menu.detailsPane = null; // Clear any existing details pane
+    },
+    'equip_tool': (game, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const { itemEntity, slot } = args;
+        const itemComponent = itemEntity.getComponent('ItemComponent');
+        const equipped = player.getComponent('EquippedItemsComponent');
+        const inventory = player.getComponent('InventoryComponent');
+
+        if (!equipped || !inventory) {
+            closeTopMenu(game.world);
+            return;
+        }
+
+        // Unequip current item in slot if exists
+        if (equipped[slot]) {
+            const currentEquipped = game.world.getEntity(equipped[slot]);
+            if (currentEquipped) {
+                 if (!inventory.canAddItem(game.world, currentEquipped, 1)) {
+                    game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
+                    closeTopMenu(game.world);
+                    return;
+                }
+                const oldKey = getInventoryKey(currentEquipped);
+                inventory.items.set(oldKey, { entityId: currentEquipped.id, quantity: 1 });
+            }
+        }
+
+        // Equip new item
+        equipped[slot] = itemEntity.id;
+        const newKey = getInventoryKey(itemEntity);
+        inventory.items.delete(newKey);
+        game.world.addComponent(player.id, new MessageComponent(`Equipped ${itemComponent.name} to ${slot}!`, 'green'));
+
+        // Recalculate light source from all equipped tools
+        let newLightRadius = BASE_PLAYER_LIGHT_RADIUS;
+        const tool1 = equipped.tool1 ? game.world.getEntity(equipped.tool1) : null;
+        const tool2 = equipped.tool2 ? game.world.getEntity(equipped.tool2) : null;
+
+        if (tool1 && tool1.hasComponent('LightSourceComponent')) {
+            newLightRadius = Math.max(newLightRadius, tool1.getComponent('LightSourceComponent').radius);
+        }
+        if (tool2 && tool2.hasComponent('LightSourceComponent')) {
+            newLightRadius = Math.max(newLightRadius, tool2.getComponent('LightSourceComponent').radius);
+        }
+
+        // Update player's light source
+        const playerLight = player.getComponent('LightSourceComponent');
+        if (playerLight) player.removeComponent('LightSourceComponent');
+        player.addComponent(new LightSourceComponent(newLightRadius, true));
+
+        const lightingSystem = game.world.systems.find(s => s instanceof LightingSystem);
+        if (lightingSystem) {
+            lightingSystem.markDirty();
+        }
+
+        if (inventory.items.size === 0) {
+            closeTopMenu(game.world);
+            return;
+        }
+
+        SCRIPT_REGISTRY['openInventoryMenu'](game, player);
     },
     'inspect_item': (game, itemEntity) => {
         const player = game.world.query(['PlayerComponent'])[0];

@@ -26,6 +26,7 @@ class Game {
         this.world.registerSystem(new InputSystem());
         this.world.registerSystem(new InteractionSystem());
         this.world.registerSystem(new MovementSystem());
+        this.world.registerSystem(new LightingSystem());
         this.world.registerSystem(new ComfortSystem());
         this.world.registerSystem(new ShipSystem());
         this.world.registerSystem(new TimeSystem()); // Time system for game time, hunger, healing
@@ -41,7 +42,7 @@ class Game {
         // MessageSystem is updated manually after world.update() to ensure proper message ordering
 
         // Create the game world using the builder
-        buildWorld(this.world, 'SHIP');
+        buildWorld(this.world, 'CRYOBAY_7');
 
         // Start the game loop
         this.lastFrameTime = performance.now();

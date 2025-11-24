@@ -15,6 +15,9 @@ const STRESS_ADJUSTMENT_INTERVAL_SECONDS = 30;
 const BLINK_INTERVAL_MS = 500;
 const TILE_SIZE = 20; // pixels per tile
 
+// --- Lighting System ---
+const BASE_PLAYER_LIGHT_RADIUS = 6; // Default light radius without equipment
+
 // --- Ship Systems ---
 const WATER_CONSUMPTION_INTERVAL_MS = 30000; // 30 seconds
 

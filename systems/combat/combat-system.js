@@ -406,9 +406,43 @@ class CombatSystem extends System {
     }
 
     hasLineOfSight(world, pos1, pos2) {
-        // Simple LOS: no walls between points (Bresenham line algorithm)
-        // For now, return true (implement proper LOS later)
-        return true;
+        // Bresenham's line algorithm with solid tile cache
+        let x0 = pos1.x, y0 = pos1.y;
+        let x1 = pos2.x, y1 = pos2.y;
+
+        const dx = Math.abs(x1 - x0);
+        const dy = Math.abs(y1 - y0);
+        const sx = x0 < x1 ? 1 : -1;
+        const sy = y0 < y1 ? 1 : -1;
+        let err = dx - dy;
+
+        while (true) {
+            // Skip start and end positions (can stand on edge of wall)
+            if ((x0 !== pos1.x || y0 !== pos1.y) &&
+                (x0 !== pos2.x || y0 !== pos2.y)) {
+
+                // Fast cache lookup - check if wall blocks LOS
+                if (world.isSolidTile(x0, y0)) {
+                    return false; // Wall blocks LOS
+                }
+            }
+
+            // Reached destination
+            if (x0 === x1 && y0 === y1) break;
+
+            // Step to next position
+            const e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+
+        return true; // No obstacles found
     }
 
     rollDie(sides) {

@@ -4,7 +4,10 @@
       "Bash(cat:*)",
       "Bash(node:*)",
       "Bash(dir /B /S *.js)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

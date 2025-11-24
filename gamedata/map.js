@@ -4,6 +4,7 @@ const MAP_DATA = {
     'SHIP': {
         name: 'Escape Ship',
         temperature: 21,
+        darkMap: false,  // Ship is always lit
         layout: [
             "...++++++...............................",
             "...+....+...............................",
@@ -35,6 +36,7 @@ const MAP_DATA = {
     'CRYOBAY_7': {
         name: 'Cryo-bay 7',
         temperature: 21,
+        darkMap: true,  // Expedition map starts in darkness
         layout: [
             "++++++++++++++++++++++++++++++++++++++++",
             "+......................................+",
@@ -68,7 +70,8 @@ const MAP_DATA = {
             { id: 'HEATING_ELEMENT', x: 18, y: 10 },
             { id: 'COOLING_SYSTEM', x: 22, y: 10 },
             // Workbench for modifications
-            { id: 'WORKBENCH', x: 20, y: 12 }
+            { id: 'WORKBENCH', x: 20, y: 12 },
+            { id: 'TOOL_TORCH', x: 21, y: 10}
         ],
         creatures: [
             // { id: 'PLAYER', x: 20, y: 7 } // Player start position is handled separately for now

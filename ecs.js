@@ -11,6 +11,8 @@ class World {
         this.entities = new Map();
         this.systems = [];
         this.nextEntityId = 0;
+        this.mapLighting = null; // Will be set by the world builder
+        this.solidTileCache = new Set(); // Cache for solid tile positions (for LOS)
     }
 
     /**
@@ -95,6 +97,34 @@ class World {
         for (const system of this.systems) {
             system.update(this, ...args);
         }
+    }
+
+    /**
+     * Add a solid tile to the cache (for LOS calculations)
+     * @param {number} x
+     * @param {number} y
+     */
+    addSolidTileToCache(x, y) {
+        this.solidTileCache.add(`${x},${y}`);
+    }
+
+    /**
+     * Remove a solid tile from the cache (when door opens)
+     * @param {number} x
+     * @param {number} y
+     */
+    removeSolidTileFromCache(x, y) {
+        this.solidTileCache.delete(`${x},${y}`);
+    }
+
+    /**
+     * Check if a tile is solid (for LOS calculations)
+     * @param {number} x
+     * @param {number} y
+     * @returns {boolean}
+     */
+    isSolidTile(x, y) {
+        return this.solidTileCache.has(`${x},${y}`);
     }
 }
 

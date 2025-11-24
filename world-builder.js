@@ -8,6 +8,9 @@ function buildWorld(world, mapId) {
         return;
     }
 
+    // Set map lighting (from map data)
+    world.mapLighting = new MapLightingComponent(map.darkMap || false);
+
     // 1. Create entities from the layout string (walls, floors)
     for (let y = 0; y < map.layout.length; y++) {
         const row = map.layout[y];
@@ -15,6 +18,7 @@ function buildWorld(world, mapId) {
             const char = row[x];
             const entity = world.createEntity();
             world.addComponent(entity, new PositionComponent(x, y));
+            world.addComponent(entity, new VisibilityStateComponent());
 
             let isPlaceholder = map.interactables.some(i => i.x === x && i.y === y);
             // In the future, you might add other placeholders for creatures, items, etc.
@@ -22,6 +26,7 @@ function buildWorld(world, mapId) {
             if (char === '+' && !isPlaceholder) { // Don't create walls at interactable positions
                 world.addComponent(entity, new RenderableComponent('+', '#666', 0));
                 world.addComponent(entity, new SolidComponent());
+                world.addSolidTileToCache(x, y); // Add to cache for LOS calculations
             } else if (char === '.' || isPlaceholder) { // Treat placeholder spots as floor
                 world.addComponent(entity, new RenderableComponent('.', '#333', 0));
             }
@@ -32,9 +37,12 @@ function buildWorld(world, mapId) {
     map.interactables.forEach(item => {
         let def = INTERACTABLE_DATA.find(i => i.id === item.id);
 
-        // If not found in INTERACTABLE_DATA, check EQUIPMENT_DATA
+        // If not found in INTERACTABLE_DATA, check EQUIPMENT_DATA, then TOOL_DATA
         if (!def) {
             def = EQUIPMENT_DATA.find(i => i.id === item.id);
+        }
+        if (!def) {
+            def = TOOL_DATA[item.id];
         }
 
         if (!def) {
@@ -45,7 +53,9 @@ function buildWorld(world, mapId) {
         const entity = world.createEntity();
         world.addComponent(entity, new PositionComponent(item.x, item.y));
         world.addComponent(entity, new RenderableComponent(def.char, def.colour, 1));
-        world.addComponent(entity, new NameComponent(def.name)); // Add NameComponent for Q key display
+        world.addComponent(entity, new NameComponent(def.name));
+        world.addComponent(entity, new VisibilityStateComponent());
+
 
         // Handle equipment items
         if (def.part_type) {
@@ -99,6 +109,17 @@ function buildWorld(world, mapId) {
                 world.addComponent(entity, new ArmourComponent(def.armour_type));
             }
             world.addComponent(entity, new InteractableComponent('pickupItem', {}));
+        } else if (def.tool_type) {
+            // This is a tool
+            world.addComponent(entity, new ItemComponent(def.name, def.description, def.weight || 0, def.slots || 1.0));
+            world.addComponent(entity, new ToolComponent(def.tool_type, def.uses || -1));
+            if (def.stats) {
+                world.addComponent(entity, new ToolStatsComponent(def.stats));
+                if (def.stats.lightRadius > 0) {
+                    world.addComponent(entity, new LightSourceComponent(def.stats.lightRadius, true));
+                }
+            }
+             world.addComponent(entity, new InteractableComponent('pickupItem', {}));
         } else if (def.script === 'pickupItem') {
             // Original consumable item handling
             world.addComponent(entity, new ItemComponent(def.name, '', def.weight || 0));
@@ -112,6 +133,11 @@ function buildWorld(world, mapId) {
 
         if (def.solid) {
             world.addComponent(entity, new SolidComponent());
+            world.addSolidTileToCache(item.x, item.y); // Add to cache for LOS calculations
+        }
+
+        if (def.lightRadius && def.lightRadius > 0) {
+            world.addComponent(entity, new LightSourceComponent(def.lightRadius, true));
         }
     });
 
@@ -122,6 +148,7 @@ function buildWorld(world, mapId) {
     world.addComponent(player, new NameComponent(playerDef.name));
     world.addComponent(player, new PositionComponent(map.playerSpawn.x, map.playerSpawn.y));
     world.addComponent(player, new RenderableComponent(playerDef.char, playerDef.colour, 2));
+    world.addComponent(player, new VisibilityStateComponent());
 
     // Create stats component with initial hunger at 50%
     const stats = new CreatureStatsComponent(50);
@@ -144,6 +171,10 @@ function buildWorld(world, mapId) {
 
     // Add FacingComponent - player starts facing down
     world.addComponent(player, new FacingComponent('down'));
+
+    if (world.mapLighting.enabled) {
+        world.addComponent(player, new LightSourceComponent(BASE_PLAYER_LIGHT_RADIUS, true));
+    }
 
     // Add Rice Patties to player inventory for testing (3 patties)
     const playerEntity = world.getEntity(player);
@@ -205,6 +236,7 @@ function spawnEnemy(world, enemyDefId, x, y) {
     world.addComponent(enemyId, new PositionComponent(x, y));
     world.addComponent(enemyId, new RenderableComponent(enemyDef.char, enemyDef.colour, 2));
     world.addComponent(enemyId, new BodyPartsComponent());
+    world.addComponent(enemyId, new VisibilityStateComponent());
 
     // Set body part efficiencies from definition
     if (enemyDef.body) {
@@ -240,6 +272,7 @@ function spawnEnemy(world, enemyDefId, x, y) {
             world.addComponent(weaponId, new ItemComponent(weaponDef.name, weaponDef.weight || 400, weaponDef.volume || 1));
             world.addComponent(weaponId, new NameComponent(weaponDef.name));
             world.addComponent(weaponId, new RenderableComponent(weaponDef.char, weaponDef.colour, 1));
+            world.addComponent(weaponId, new VisibilityStateComponent());
 
             // Add GunComponent
             if (weaponDef.gun_type) {
@@ -268,6 +301,7 @@ function spawnEnemy(world, enemyDefId, x, y) {
                                 world.addComponent(partEntityId, new ItemComponent(randomPart.name, randomPart.weight || 50, 0.1));
                                 world.addComponent(partEntityId, new NameComponent(randomPart.name));
                                 world.addComponent(partEntityId, new PartComponent(randomPart.part_type));
+                                world.addComponent(partEntityId, new VisibilityStateComponent());
 
                                 if (randomPart.modifiers && Object.keys(randomPart.modifiers).length > 0) {
                                     world.addComponent(partEntityId, new StatModifierComponent(randomPart.modifiers));
@@ -346,6 +380,7 @@ function spawnEnemy(world, enemyDefId, x, y) {
             world.addComponent(armorId, new ItemComponent(armorDef.name, armorDef.weight || 800, armorDef.volume || 2));
             world.addComponent(armorId, new NameComponent(armorDef.name));
             world.addComponent(armorId, new RenderableComponent(armorDef.char, armorDef.colour, 1));
+            world.addComponent(armorId, new VisibilityStateComponent());
 
             // Add AttachmentSlotsComponent for armor
             if (armorDef.attachment_slots) {

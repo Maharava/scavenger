@@ -62,6 +62,14 @@ class MovementSystem extends System {
                     facing.setFromMovement(action.payload.dx, action.payload.dy);
                 }
 
+                // If a light source moves, mark the lighting system as dirty
+                if (entity.hasComponent('LightSourceComponent')) {
+                    const lightingSystem = world.systems.find(s => s instanceof LightingSystem);
+                    if (lightingSystem) {
+                        lightingSystem.markDirty();
+                    }
+                }
+
                 // Track movement usage in combat
                 if (inCombat) {
                     const combatant = entity.getComponent('CombatantComponent');
