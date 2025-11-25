@@ -67,11 +67,22 @@ class TimeSystem extends System {
             stats.hunger = Math.max(MIN_STAT_VALUE, stats.hunger - hungerLoss);
 
             // Apply body part healing (2% per day = ~0.083% per hour)
-            const healingAmount = HEALING_RATE_PER_GAME_HOUR * hoursPassed;
+            // Add medical skill bonus (+1% per level)
+            const skills = player.getComponent('SkillsComponent');
+            const medicalBonus = skills ? skills.medical : 0;
+            const healingAmount = (HEALING_RATE_PER_GAME_HOUR + medicalBonus) * hoursPassed;
+
+            let anyPartHealed = false;
             for (const [partName, efficiency] of bodyParts.parts) {
                 if (efficiency < MAX_STAT_VALUE) {
                     bodyParts.heal(partName, healingAmount);
+                    anyPartHealed = true;
                 }
+            }
+
+            // Set healing trigger for skill system
+            if (anyPartHealed && skills) {
+                skills.triggers.hasHealedToday = true;
             }
 
             // Apply water consumption (if on ship)
@@ -102,6 +113,7 @@ class TimeSystem extends System {
         const timeComponent = player.getComponent('TimeComponent');
         const stats = player.getComponent('CreatureStatsComponent');
         const bodyParts = player.getComponent('BodyPartsComponent');
+        const skills = player.getComponent('SkillsComponent');
 
         if (!timeComponent || !stats) return;
 
@@ -125,12 +137,22 @@ class TimeSystem extends System {
         // Apply rest restoration
         stats.rest = Math.min(MAX_STAT_VALUE, stats.rest + restRestoration);
 
-        // Apply healing bonus if 8 hours
+        // Apply healing bonus if 8 hours (with medical skill bonus)
         if (healingBonus > 0 && bodyParts) {
+            const medicalBonus = skills ? skills.medical : 0;
+            const totalHealing = healingBonus + medicalBonus;
+
+            let anyPartHealed = false;
             for (const [partName, efficiency] of bodyParts.parts) {
                 if (efficiency < MAX_STAT_VALUE) {
-                    bodyParts.heal(partName, healingBonus);
+                    bodyParts.heal(partName, totalHealing);
+                    anyPartHealed = true;
                 }
+            }
+
+            // Set healing trigger for skill system
+            if (anyPartHealed && skills) {
+                skills.triggers.hasHealedToday = true;
             }
         }
 

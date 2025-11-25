@@ -33,8 +33,19 @@ class InputSystem extends System {
 
             // Calculate which tile is hovered (20px per tile from style.css)
             const TILE_SIZE = 20;
-            this.hoveredTileX = Math.floor(this.mouseX / TILE_SIZE);
-            this.hoveredTileY = Math.floor(this.mouseY / TILE_SIZE);
+            const screenTileX = Math.floor(this.mouseX / TILE_SIZE);
+            const screenTileY = Math.floor(this.mouseY / TILE_SIZE);
+
+            // Convert screen coordinates to world coordinates using camera offset
+            // Camera offset will be set by RenderSystem
+            if (this.world && this.world.game) {
+                this.hoveredTileX = screenTileX + this.world.game.cameraX;
+                this.hoveredTileY = screenTileY + this.world.game.cameraY;
+            } else {
+                // Fallback if world not yet initialized
+                this.hoveredTileX = screenTileX;
+                this.hoveredTileY = screenTileY;
+            }
         });
 
         gameContainer.addEventListener('mouseleave', () => {
@@ -106,6 +117,11 @@ class InputSystem extends System {
         if (menu.activeMenu === 'submenu2' && menu.menuType === 'workbench') {
             MENU_ACTIONS['update_workbench_details'](game);
         }
+
+        // Update skill details if navigating in submenu1 of equipment menu
+        if (menu.activeMenu === 'submenu1' && menu.menuType === 'equipment') {
+            MENU_ACTIONS['update_skill_details'](game);
+        }
     }
 
     // Helper: Navigate horizontally (left/right) between menu levels
@@ -117,9 +133,12 @@ class InputSystem extends System {
                 if (menu.menuType === 'workbench') {
                     MENU_ACTIONS['update_workbench_details'](game);
                 }
+                if (menu.menuType === 'equipment') {
+                    MENU_ACTIONS['update_skill_details'](game);
+                }
             } else if (menu.activeMenu === 'submenu1') {
                 menu.activeMenu = 'main';
-                if (menu.menuType === 'workbench') {
+                if (menu.menuType === 'workbench' || menu.menuType === 'equipment') {
                     menu.detailsPane = null;
                 }
             }
@@ -127,6 +146,9 @@ class InputSystem extends System {
             // Navigate forward
             if (menu.activeMenu === 'main' && menu.submenu1) {
                 menu.activeMenu = 'submenu1';
+                if (menu.menuType === 'equipment') {
+                    MENU_ACTIONS['update_skill_details'](game);
+                }
             } else if (menu.activeMenu === 'submenu1' && menu.submenu2) {
                 menu.activeMenu = 'submenu2';
                 if (menu.menuType === 'workbench') {
@@ -149,6 +171,8 @@ class InputSystem extends System {
     }
 
     update(world) {
+        this.world = world; // Store reference for mouse coordinate conversion
+
         if (this.keys.size === 0) return;
 
         // Check if player is sleeping - block ALL input during sleep

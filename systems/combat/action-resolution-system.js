@@ -74,6 +74,7 @@ class ActionResolutionSystem extends System {
         world.addComponent(bulletId, new RenderableComponent(bulletChar, bulletColour, 100)); // High z-index
 
         // Calculate hit chance (allows out-of-range shooting with penalties)
+        // Chaff Spitter auto-activation happens inside calculateHitChance
         const result = this.calculateHitChance(world, attacker, target, gunStats, distance);
         const hitChance = result.hitChance;
         const modifiers = result.modifiers;
@@ -135,11 +136,76 @@ class ActionResolutionSystem extends System {
         }
     }
 
+    // Check for and auto-activate Chaff Spitter when player is targeted
+    // Chaff Spitter applies -30% accuracy to attacker (once per turn cycle)
+    // Automatically consumes 1 use when activated
+    checkAndActivateChaffSpitter(world, attacker, target) {
+        // Only activate if target is the player
+        if (!target.hasComponent('PlayerComponent')) return 0;
+
+        const player = target;
+        const playerCombatant = player.getComponent('CombatantComponent');
+        if (!playerCombatant) return 0;
+
+        // Check if already used this turn cycle
+        if (playerCombatant.chaffUsedThisCycle) return 0;
+
+        const equipped = player.getComponent('EquippedItemsComponent');
+        if (!equipped) return 0;
+
+        // Check both tool slots for Chaff Spitter
+        const toolSlots = [equipped.tool1, equipped.tool2];
+        for (const toolId of toolSlots) {
+            if (!toolId) continue;
+
+            const toolEntity = world.getEntity(toolId);
+            if (!toolEntity) continue;
+
+            const toolComponent = toolEntity.getComponent('ToolComponent');
+            const toolStats = toolEntity.getComponent('ToolStatsComponent');
+            const itemComponent = toolEntity.getComponent('ItemComponent');
+
+            // Check if this is a Chaff Spitter with uses remaining
+            if (toolComponent && toolStats &&
+                toolStats.specialAbility === 'deploy_chaff' &&
+                toolComponent.usesRemaining !== 0) {
+
+                const accuracyDebuff = toolStats.abilityArgs?.accuracyDebuff || 30;
+
+                // Consume one use
+                if (toolComponent.usesRemaining > 0) {
+                    toolComponent.usesRemaining--;
+                }
+
+                // Mark as used this cycle
+                playerCombatant.chaffUsedThisCycle = true;
+
+                // Notify player
+                world.addComponent(player.id, new MessageComponent(
+                    `${itemComponent.name} activated! -${accuracyDebuff}% enemy accuracy (${toolComponent.usesRemaining} uses left)`,
+                    'cyan'
+                ));
+
+                // Return the debuff to apply
+                return accuracyDebuff;
+            }
+        }
+
+        return 0;  // No chaff spitter found or already used
+    }
+
     calculateHitChance(world, attacker, target, gunStats, distance) {
         let accuracy = gunStats.accuracy;  // Base from weapon parts
         const modifiers = {}; // Track modifiers for console logging
 
         modifiers.base = accuracy;
+
+        // Check for Chaff Spitter debuff (applied before other calculations)
+        const chaffDebuff = this.checkAndActivateChaffSpitter(world, attacker, target);
+        if (chaffDebuff > 0) {
+            accuracy -= chaffDebuff;
+            modifiers.chaffSpitter = -chaffDebuff;
+        }
 
         // First strike bonus (player only, first turn only)
         if (attacker.hasComponent('PlayerComponent')) {

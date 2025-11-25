@@ -17,6 +17,7 @@ const CREATURE_DATA = [
         "aiType": "aggressive",
         "detectionRange": 10,
         "morale": 90,
+        "stealth": 20,  // Standard stealth (80% motion tracker detection chance)
         "body": {
             "head": 100,
             "torso": 80,
@@ -26,22 +27,7 @@ const CREATURE_DATA = [
         "armor": null
     },
 
-    {
-        "id": "PIRATE",
-        "name": "Pirate",
-        "char": "P",
-        "colour": "#f44",
-        "aiType": "defensive",
-        "detectionRange": 12,
-        "morale": 120,
-        "body": {
-            "head": 100,
-            "torso": 100,
-            "limbs": 100
-        },
-        "weapon": "ASSAULT_RIFLE",
-        "armor": "SCRAP_ARMOUR"
-    },
+
 
     // --- ROBOT ENEMIES ---
 
@@ -52,6 +38,7 @@ const CREATURE_DATA = [
         "colour": "#aaf",
         "aiType": "defensive",
         "detectionRange": 12,
+        "stealth": 20,  // Standard stealth (80% motion tracker detection chance)
         "body": {
             "head": 0,      // Robots only have torso
             "torso": 40,    // Durability pool
@@ -78,6 +65,7 @@ const CREATURE_DATA = [
         "colour": "#aaa",
         "aiType": "aggressive",
         "detectionRange": 12,
+        "stealth": 20,  // Standard stealth (80% motion tracker detection chance)
         "body": {
             "head": 0,
             "torso": 80,

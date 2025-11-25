@@ -1,24 +1,24 @@
 # Scavenger: Game Idea
 
-**Development Status:** Core systems complete - ECS architecture, inventory, equipment, combat, time progression, and ship management are fully implemented. Procedural generation and expedition loop are planned for future development.
+**Development Status:** Core systems complete - ECS architecture, inventory, equipment, combat, time progression, ship management, and procedural generation are fully implemented. Expedition loop is functional with airlock system for starting expeditions.
 
 ## Concept
 
 Scavenger is a rogue-like game focused on exploration, survival, and resource management within a procedurally generated universe. Players operate from a persistent home base – a space ship – venturing out to various hazardous locations to scavenge for resources and technology. The core loop involves preparing for expeditions, exploring dangerous environments, and returning to the ship to upgrade and survive.
 
-**Note:** Currently, the game features a single hardcoded map for testing. The full expedition/ship loop is planned for future implementation.
+Beyond human survivors and the automated robotic systems, the player will encounter Aberrants. These are not a cohesive faction but chaotic, universal mutations stemming from a multitude of horrific origins: failed human and robot experiments, entities warped by staring into the existential Void between stars, and ancient, dark lifeforms that evolved on rogue planets far beyond known space. They are the universe's runtime errors, unpredictable and universally hostile.
+
+**Note:** The game features both a persistent ship (hardcoded map) and procedurally generated expedition locations. Players can use the airlock on the ship to start expeditions.
 
 ## Core Gameplay Loop
-
-**⚠️ Ship Phase and Expedition System: NOT YET IMPLEMENTED**
 
 1.  **Preparation (Ship Phase):** *(Planned)*
     *   **Crafting & Upgrading:** Use scavenged resources to craft new equipment, upgrade the ship's capabilities (e.g., survival systems, cargo capacity), and improve the player's gear.
     *   **Survival Management:** Manage the ship's resources (fuel, oxygen, food) which are consumed during travel and exploration.
     *   **Expedition Planning:** Choose a destination from procedurally generated locations, considering its potential rewards and known hazards.
 
-2.  **Exploration (Location Phase):** *(Mostly Implemented)*
-    *   **Procedural Generation:** ⏳ Not implemented - currently using hardcoded maps. Each location will be uniquely generated in the future.
+2.  **Exploration (Location Phase):** *(Implemented)*
+    *   **Procedural Generation:** ✅ Implemented - Each expedition location is uniquely generated with rooms, corridors, doors, and loot placement based on location templates.
     *   **Scavenging:** ✅ Implemented - Discover and collect resources, components, and unique items.
     *   **Survival Mechanics:** ✅ Implemented - Survival stats (hunger, rest, stress, comfort) with automatic hunger depletion over time. Body parts heal naturally (2% per day). Environmental hazards (temperature, radiation) are designed but not yet active.
     *   **Combat/Avoidance:** ✅ Implemented - Encounter hostile entities. Fully functional turn-based combat system with body part targeting, armor mechanics, and AI behaviors.
@@ -46,9 +46,12 @@ Scavenger is a rogue-like game focused on exploration, survival, and resource ma
 *   ✅ **Sleep System:** Rest restoration with time-skip mechanics (1hr/4hr/8hr options)
 *   ✅ **Ship Resources:** Water and fuel management with consumption tracking
 
+*   ✅ **Procedurally Generated Locations:** Infinite replayability with diverse biomes and challenges
+*   ✅ **Expedition System:** Airlock on ship allows starting expeditions to procedurally generated locations
+*   ✅ **Hydroponics System:** Grow food on the ship with multi-day growth cycles
+
 **Planned for Future:**
-*   ⏳ **Procedurally Generated Locations:** Infinite replayability with diverse biomes and challenges
-*   ⏳ **Expedition Loop:** Full ship-to-location-to-ship gameplay cycle
+*   ⏳ **Return to Ship Mechanic:** Complete the expedition loop by allowing return to ship from expeditions
 *   ⏳ **Environmental Hazards:** Active temperature, radiation, and oxygen effects
 *   ⏳ **Risk/Reward Gameplay:** High stakes for expeditions with significant losses upon death
 *   ⏳ **Crafting System:** Create new items and modules from scavenged materials

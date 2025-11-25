@@ -189,9 +189,11 @@ function calculateEquipmentWeight(world, equipmentEntity) {
         return itemComponent ? itemComponent.weight : 0;
     }
 
-    let totalWeight = 0;
+    // Start with the base weight of the equipment container (pistol/rifle/armor frame)
+    const itemComponent = equipmentEntity.getComponent('ItemComponent');
+    let totalWeight = itemComponent ? itemComponent.weight : 0;
 
-    // Sum weights of all attached parts
+    // Add weights of all attached parts
     for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
         if (!slotData.entity_id) continue;
 
@@ -205,4 +207,123 @@ function calculateEquipmentWeight(world, equipmentEntity) {
     }
 
     return totalWeight;
+}
+
+// Calculate the effective weight of equipment based on what slot it's equipped in
+// Returns the actual weight value to use when calculating total carried weight
+// Parameters:
+//   - baseWeight: The raw weight of the item (from calculateEquipmentWeight or ItemComponent)
+//   - equipmentSlot: The slot where the item is equipped ('hand', 'body', 'tool1', 'tool2', 'backpack')
+//   - equipmentEntity: The entity of the equipment (used to check if it's armor/gun/tool/backpack)
+function getEquippedWeightMultiplier(world, equipmentEntity, equipmentSlot) {
+    // Determine equipment type
+    const hasGun = equipmentEntity.hasComponent('GunComponent');
+    const hasArmor = equipmentEntity.hasComponent('ArmourComponent');
+    const hasTool = equipmentEntity.hasComponent('ToolComponent');
+    const isBackpack = equipmentSlot === 'backpack';
+
+    // Apply weight multipliers based on equipment type
+    if (hasArmor) {
+        return EQUIPPED_ARMOR_WEIGHT_MULT;  // 50% weight for armor
+    } else if (hasTool && !isBackpack) {
+        return EQUIPPED_TOOL_WEIGHT_MULT;   // 50% weight for tools (not backpacks)
+    } else if (hasGun) {
+        return EQUIPPED_GUN_WEIGHT_MULT;    // 100% weight for guns (full weight)
+    } else if (isBackpack) {
+        return EQUIPPED_BACKPACK_WEIGHT_MULT; // 100% weight for backpacks (full weight)
+    }
+
+    // Default: full weight
+    return 1.0;
+}
+
+// Check if equipment has all required attachment slots filled
+// Returns true if equipment can be equipped, false otherwise
+function isEquipmentValid(world, equipmentEntity) {
+    const attachmentSlots = equipmentEntity.getComponent('AttachmentSlotsComponent');
+    if (!attachmentSlots) return true;  // Non-modular equipment is always valid
+
+    // Check that all required slots have parts installed
+    for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
+        if (slotData.required && !slotData.entity_id) {
+            return false;  // Required slot is empty
+        }
+    }
+
+    return true;  // All required slots are filled
+}
+
+// Get modified stats from all equipped tools (skill boosts, inventory slots, weight bonuses)
+// Returns an object with aggregated bonuses: { skillBoosts: {}, inventorySlots: 0, maxWeightPct: 0 }
+function getModifiedStatsFromTools(world, playerEntity) {
+    const equipped = playerEntity.getComponent('EquippedItemsComponent');
+    if (!equipped) return { skillBoosts: {}, inventorySlots: 0, maxWeightPct: 0 };
+
+    const modifiedStats = {
+        skillBoosts: {},      // e.g., { medical: 1, farming: 1 }
+        inventorySlots: 0,    // Total bonus slots from tools
+        maxWeightPct: 0       // Percentage bonus to max weight (e.g., 20 for +20%)
+    };
+
+    // Check all tool slots (tool1, tool2, backpack)
+    const toolSlots = ['tool1', 'tool2', 'backpack'];
+    for (const slotName of toolSlots) {
+        const toolEntityId = equipped[slotName];
+        if (!toolEntityId) continue;
+
+        const toolEntity = world.getEntity(toolEntityId);
+        if (!toolEntity) continue;
+
+        const toolStats = toolEntity.getComponent('ToolStatsComponent');
+        if (!toolStats) continue;
+
+        // Aggregate skill boosts
+        if (toolStats.skillBoosts) {
+            for (const [skill, bonus] of Object.entries(toolStats.skillBoosts)) {
+                modifiedStats.skillBoosts[skill] = (modifiedStats.skillBoosts[skill] || 0) + bonus;
+            }
+        }
+
+        // Aggregate stat boosts (inventory slots, weight capacity)
+        if (toolStats.statBoosts) {
+            if (toolStats.statBoosts.inventorySlots) {
+                modifiedStats.inventorySlots += toolStats.statBoosts.inventorySlots;
+            }
+            if (toolStats.statBoosts.maxWeightPct) {
+                modifiedStats.maxWeightPct += toolStats.statBoosts.maxWeightPct;
+            }
+        }
+    }
+
+    return modifiedStats;
+}
+
+// Calculate the effective max weight capacity for a player
+// Takes into account base capacity and any percentage bonuses from tools (e.g., Grav Ball +20%)
+// Returns the modified max weight in grams
+function getPlayerMaxWeight(world, playerEntity) {
+    const inventory = playerEntity.getComponent('InventoryComponent');
+    if (!inventory) return BASE_MAX_WEIGHT;
+
+    const baseMaxWeight = inventory.maxWeight;  // Should be BASE_MAX_WEIGHT (13kg)
+    const toolStats = getModifiedStatsFromTools(world, playerEntity);
+
+    // Apply percentage bonus (e.g., Grav Ball adds +20%)
+    const percentageBonus = toolStats.maxWeightPct / 100;
+    const modifiedMaxWeight = baseMaxWeight * (1 + percentageBonus);
+
+    return Math.floor(modifiedMaxWeight);  // Return as integer grams
+}
+
+// Calculate the effective inventory slot capacity for a player
+// Takes into account base capacity and any slot bonuses from tools
+// Returns the modified slot capacity
+function getPlayerMaxSlots(world, playerEntity) {
+    const inventory = playerEntity.getComponent('InventoryComponent');
+    if (!inventory) return 4;  // Default base capacity
+
+    const baseCapacity = inventory.capacity;  // Base slots (usually 4)
+    const toolStats = getModifiedStatsFromTools(world, playerEntity);
+
+    return baseCapacity + toolStats.inventorySlots;
 }

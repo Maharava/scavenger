@@ -64,6 +64,10 @@ class CombatSystem extends System {
             }
         }
 
+        // Auto-activate Adrenal Spiker if equipped (BEFORE initiative roll)
+        // Gives +2 initiative bonus, consumes 1 use, only activates once per combat
+        this.checkAndActivateAdrenalSpiker(world);
+
         // Roll initiative
         this.rollInitiative(world);
 
@@ -137,6 +141,55 @@ class CombatSystem extends System {
         }
     }
 
+    // Check for and auto-activate Adrenal Spiker before initiative roll
+    // Adrenal Spiker provides +2 initiative bonus at combat start (once per combat)
+    // Automatically consumes 1 use when activated
+    checkAndActivateAdrenalSpiker(world) {
+        const player = world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const equipped = player.getComponent('EquippedItemsComponent');
+        const combatant = player.getComponent('CombatantComponent');
+        if (!equipped || !combatant) return;
+
+        // Check both tool slots for Adrenal Spiker
+        const toolSlots = [equipped.tool1, equipped.tool2];
+        for (const toolId of toolSlots) {
+            if (!toolId) continue;
+
+            const toolEntity = world.getEntity(toolId);
+            if (!toolEntity) continue;
+
+            const toolComponent = toolEntity.getComponent('ToolComponent');
+            const toolStats = toolEntity.getComponent('ToolStatsComponent');
+            const itemComponent = toolEntity.getComponent('ItemComponent');
+
+            // Check if this is an Adrenal Spiker with uses remaining
+            if (toolComponent && toolStats &&
+                toolStats.specialAbility === 'use_adrenal_spiker' &&
+                toolComponent.usesRemaining !== 0) {
+
+                // Apply initiative bonus
+                const initiativeBonus = toolStats.abilityArgs?.initiativeBonus || 2;
+                combatant.movementPerTurn += initiativeBonus;
+
+                // Consume one use
+                if (toolComponent.usesRemaining > 0) {
+                    toolComponent.usesRemaining--;
+                }
+
+                // Notify player
+                world.addComponent(player.id, new MessageComponent(
+                    `${itemComponent.name} activated! +${initiativeBonus} initiative (${toolComponent.usesRemaining} uses left)`,
+                    'cyan'
+                ));
+
+                // Only activate once (first spiker found)
+                return;
+            }
+        }
+    }
+
     rollInitiative(world) {
         const rolls = [];
 
@@ -144,7 +197,7 @@ class CombatSystem extends System {
             const entity = world.getEntity(id);
             const combatant = entity.getComponent('CombatantComponent');
 
-            // Initiative = movement + 1d6
+            // Initiative = movement + 1d6 (may include bonus from Adrenal Spiker)
             const roll = combatant.movementPerTurn + this.rollDie(COMBAT_CONSTANTS.INITIATIVE_DIE);
             combatant.initiativeRoll = roll;
 
@@ -282,7 +335,13 @@ class CombatSystem extends System {
         const player = world.query(['PlayerComponent'])[0];
 
         if (newActiveEntity && newActiveEntity.hasComponent('PlayerComponent')) {
-            // Player's turn - re-select target (in case previous target died)
+            // Player's turn - reset Chaff Spitter flag (resets each turn cycle)
+            const playerCombatant = newActiveEntity.getComponent('CombatantComponent');
+            if (playerCombatant) {
+                playerCombatant.chaffUsedThisCycle = false;
+            }
+
+            // Re-select target (in case previous target died)
             this.selectFirstEnemy(world);
             world.addComponent(player.id, new MessageComponent(
                 `YOUR TURN! Round ${this.activeCombatSession.round}`,

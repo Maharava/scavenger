@@ -884,5 +884,122 @@ const MENU_ACTIONS = {
         } else {
             game.world.addComponent(player.id, new MessageComponent('Error: Time system not found!', 'red'));
         }
+    },
+    'plantSeed': (game, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const { seedId, bayId } = args;
+        const bay = game.world.getEntity(bayId);
+        const hydroponics = bay.getComponent('HydroponicsComponent');
+        const inventory = player.getComponent('InventoryComponent');
+
+        const seedData = HYDROPONICS_DATA[seedId];
+        if (!seedData) return;
+
+        hydroponics.state = 'growing';
+        hydroponics.seedId = seedId;
+        hydroponics.growthTimer = seedData.time;
+        hydroponics.yield = seedData.yield;
+        hydroponics.seedChance = seedData.seedChance;
+
+        const seedDef = INTERACTABLE_DATA.find(def => def.id === seedId);
+        const inventoryItem = inventory.items.get(seedDef.name);
+        if (inventoryItem) {
+            inventoryItem.quantity--;
+            if (inventoryItem.quantity <= 0) {
+                inventory.items.delete(seedDef.name);
+            }
+        }
+
+        closeTopMenu(game.world);
+        game.world.addComponent(player.id, new MessageComponent(`Planted ${seedDef.name}.`, 'green'));
+    },
+    'harvest': (game, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+        
+        const { bayId } = args;
+        const bay = game.world.getEntity(bayId);
+        const hydroponics = bay.getComponent('HydroponicsComponent');
+        const inventory = player.getComponent('InventoryComponent');
+
+        const seedData = HYDROPONICS_DATA[hydroponics.seedId];
+        if (!seedData) return;
+
+        const produceDef = INTERACTABLE_DATA.find(def => def.id === seedData.growsInto);
+        const yieldAmount = Math.floor(Math.random() * (hydroponics.yield[1] - hydroponics.yield[0] + 1)) + hydroponics.yield[0];
+
+        if (produceDef) {
+            const produceEntity = game.world.createEntity();
+            game.world.addComponent(produceEntity, new ItemComponent(produceDef.name, '', produceDef.weight || 0, produceDef.slots || 0));
+            game.world.addComponent(produceEntity, new ConsumableComponent(produceDef.scriptArgs.effect, produceDef.scriptArgs.value));
+            game.world.addComponent(produceEntity, new StackableComponent(1, 99));
+            game.world.addComponent(produceEntity, new NameComponent(produceDef.name));
+
+            if (inventory.items.has(produceDef.name)) {
+                const existingStack = inventory.items.get(produceDef.name);
+                existingStack.quantity += yieldAmount;
+            } else {
+                inventory.items.set(produceDef.name, { entityId: produceEntity, quantity: yieldAmount });
+            }
+            game.world.addComponent(player.id, new MessageComponent(`Harvested ${yieldAmount} ${produceDef.name}.`, 'green'));
+        }
+
+        if (Math.random() < hydroponics.seedChance) {
+            const seedDef = INTERACTABLE_DATA.find(def => def.id === hydroponics.seedId);
+            if (seedDef) {
+                const seedEntity = game.world.createEntity();
+                game.world.addComponent(seedEntity, new ItemComponent(seedDef.name, '', seedDef.weight || 0, seedDef.slots || 0));
+                game.world.addComponent(seedEntity, new NameComponent(seedDef.name));
+                game.world.addComponent(seedEntity, new StackableComponent(1, 99));
+
+                if (inventory.items.has(seedDef.name)) {
+                    const existingStack = inventory.items.get(seedDef.name);
+                    existingStack.quantity++;
+                } else {
+                    inventory.items.set(seedDef.name, { entityId: seedEntity, quantity: 1 });
+                }
+                game.world.addComponent(player.id, new MessageComponent(`You found a seed!`, 'green'));
+            }
+        }
+
+        hydroponics.state = 'empty';
+        hydroponics.seedId = null;
+        hydroponics.growthTimer = 0;
+        hydroponics.yield = [0,0];
+        hydroponics.seedChance = 0;
+
+        closeTopMenu(game.world);
+    },
+    'start_expedition': (game, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const { locationId } = args;
+
+        // Check if LOCATION_DATA exists
+        if (!LOCATION_DATA || !LOCATION_DATA[locationId]) {
+            game.world.addComponent(player.id, new MessageComponent(`Error: Location ${locationId} not found!`, 'red'));
+            closeTopMenu(game.world);
+            return;
+        }
+
+        // Generate a new map using the procgen system
+        const seed = Date.now();
+        const generatedMap = generateExpeditionMap(locationId, seed, false); // false = no enemies for now
+
+        if (!generatedMap) {
+            game.world.addComponent(player.id, new MessageComponent(`Error: Failed to generate map for ${locationId}!`, 'red'));
+            closeTopMenu(game.world);
+            return;
+        }
+
+        // Close menu
+        closeTopMenu(game.world);
+
+        // Load the generated map
+        buildWorld(game.world, generatedMap.id, generatedMap);
+        game.world.addComponent(player.id, new MessageComponent(`Starting expedition to ${generatedMap.name}...`, 'cyan'));
     }
 };

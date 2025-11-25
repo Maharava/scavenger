@@ -1,11 +1,32 @@
 // --- World Builder ---
 // This script reads map and game data to populate the ECS world.
 
-function buildWorld(world, mapId) {
-    const map = MAP_DATA[mapId];
+class MapLightingComponent {
+    constructor(enabled = true) {
+        this.enabled = enabled;  // If false, entire map is lit (ship)
+    }
+}
+
+function buildWorld(world, mapId, generatedMap = null) {
+    // Use generatedMap if provided, otherwise look up in MAP_DATA
+    const map = generatedMap || MAP_DATA[mapId];
     if (!map) {
         console.error(`Map with id "${mapId}" not found!`);
         return;
+    }
+
+    // Clear existing world entities
+    world.entities.clear();
+    world.nextEntityId = 0;
+    world.solidTileCache.clear();
+
+    // Calculate map dimensions
+    const mapWidth = map.width || (map.layout && map.layout[0] ? map.layout[0].length : 0);
+    const mapHeight = map.height || (map.layout ? map.layout.length : 0);
+
+    // Update viewport dimensions based on map size
+    if (world.game && world.game.updateViewportDimensions) {
+        world.game.updateViewportDimensions(mapWidth, mapHeight);
     }
 
     // Set map lighting (from map data)
@@ -136,6 +157,10 @@ function buildWorld(world, mapId) {
             world.addSolidTileToCache(item.x, item.y); // Add to cache for LOS calculations
         }
 
+        if (def.id === 'HYDROPONICS_BAY') {
+            world.addComponent(entity, new HydroponicsComponent());
+        }
+
         if (def.lightRadius && def.lightRadius > 0) {
             world.addComponent(entity, new LightSourceComponent(def.lightRadius, true));
         }
@@ -176,26 +201,31 @@ function buildWorld(world, mapId) {
         world.addComponent(player, new LightSourceComponent(BASE_PLAYER_LIGHT_RADIUS, true));
     }
 
-    // Add Rice Patties to player inventory for testing (3 patties)
+    // Center camera on player immediately
+    if (world.game) {
+        world.game.cameraX = Math.floor(map.playerSpawn.x - world.game.width / 2);
+        world.game.cameraY = Math.floor(map.playerSpawn.y - world.game.height / 2);
+    }
+
     const playerEntity = world.getEntity(player);
     const playerInventory = playerEntity.getComponent('InventoryComponent');
+    playerInventory.items.clear();
 
-    // Create Rice Patty entities and add to inventory
-    for (let i = 0; i < 3; i++) {
-        const riceDef = INTERACTABLE_DATA.find(item => item.id === 'RICE_PATTY');
-        if (riceDef) {
-            const riceEntity = world.createEntity();
-            world.addComponent(riceEntity, new ItemComponent(riceDef.name, '', riceDef.weight || 0));
-            world.addComponent(riceEntity, new ConsumableComponent(riceDef.scriptArgs.effect, riceDef.scriptArgs.value));
-            world.addComponent(riceEntity, new StackableComponent(1, 99));
-            world.addComponent(riceEntity, new NameComponent(riceDef.name));
+    const seeds_to_add = ["LETTUCE_SEEDS", "RICE_SEEDS", "STRAWBERRY_SEEDS", "TOMATO_SEEDS", "SOYBEAN_SEEDS"];
 
-            // Add to inventory (stackable items use name as key)
-            if (playerInventory.items.has(riceDef.name)) {
-                const existingStack = playerInventory.items.get(riceDef.name);
+    for (const seed_id of seeds_to_add) {
+        const seedDef = INTERACTABLE_DATA.find(item => item.id === seed_id);
+        if (seedDef) {
+            const seedEntity = world.createEntity();
+            world.addComponent(seedEntity, new ItemComponent(seedDef.name, '', seedDef.weight || 0, seedDef.slots || 0));
+            world.addComponent(seedEntity, new NameComponent(seedDef.name));
+            world.addComponent(seedEntity, new StackableComponent(1, 99));
+
+            if (playerInventory.items.has(seedDef.name)) {
+                const existingStack = playerInventory.items.get(seedDef.name);
                 existingStack.quantity++;
             } else {
-                playerInventory.items.set(riceDef.name, { entityId: riceEntity, quantity: 1 });
+                playerInventory.items.set(seedDef.name, { entityId: seedEntity, quantity: 1 });
             }
         }
     }
@@ -211,8 +241,17 @@ function buildWorld(world, mapId) {
     // This will replace the old `currentRoom` properties.
     world.game.mapInfo = {
         name: map.name,
-        temperature: map.temperature
+        temperature: map.temperature,
+        layout: map.layout,
+        width: map.width || (map.layout && map.layout[0] ? map.layout[0].length : 0),
+        height: map.height || (map.layout ? map.layout.length : 0)
     };
+
+    // Mark lighting system dirty (new map loaded)
+    const lightingSystem = world.systems.find(s => s.constructor.name === 'LightingSystem');
+    if (lightingSystem && lightingSystem.markDirty) {
+        lightingSystem.markDirty();
+    }
 
     // 4. Spawn test enemies for combat testing
     // TODO: Replace with proper enemy spawn locations from map data

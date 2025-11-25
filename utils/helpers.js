@@ -75,3 +75,38 @@ function getEquipmentModifiers(world, player) {
 
     return modifiers;
 }
+
+// Helper function to drop an item entity at a specific position on the map
+// Creates a pickuppable interactable at the given coordinates
+// Parameters:
+//   - world: The ECS world
+//   - itemEntity: The entity representing the item to drop
+//   - x, y: Map coordinates where the item should be dropped
+function dropItemAt(world, itemEntity, x, y) {
+    const itemComponent = itemEntity.getComponent('ItemComponent');
+    if (!itemComponent) return;
+
+    // Add position component so item appears on the ground
+    if (!itemEntity.hasComponent('PositionComponent')) {
+        world.addComponent(itemEntity.id, new PositionComponent(x, y));
+    } else {
+        const pos = itemEntity.getComponent('PositionComponent');
+        pos.x = x;
+        pos.y = y;
+    }
+
+    // Add renderable component if it doesn't exist
+    if (!itemEntity.hasComponent('RenderableComponent')) {
+        world.addComponent(itemEntity.id, new RenderableComponent(itemComponent.char, itemComponent.colour, 1));
+    }
+
+    // Add interactable component so it can be picked up again
+    if (!itemEntity.hasComponent('InteractableComponent')) {
+        world.addComponent(itemEntity.id, new InteractableComponent('pickupItem', { itemEntity: itemEntity }));
+    }
+
+    // Add visibility state for lighting system
+    if (!itemEntity.hasComponent('VisibilityStateComponent')) {
+        world.addComponent(itemEntity.id, new VisibilityStateComponent());
+    }
+}

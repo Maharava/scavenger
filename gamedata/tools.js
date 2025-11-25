@@ -217,6 +217,7 @@ const TOOL_DATA = {
         weight: 500,
         slots: 1.0,
         tool_type: 'passive',
+        equipment_slot: 'backpack',
         uses: -1,
         maxUses: -1,
         stats: {
@@ -232,6 +233,7 @@ const TOOL_DATA = {
         weight: 300,
         slots: 1.0,
         tool_type: 'passive',
+        equipment_slot: 'backpack',
         uses: -1,
         maxUses: -1,
         stats: {
@@ -247,6 +249,7 @@ const TOOL_DATA = {
         weight: 1500,
         slots: 1.0,
         tool_type: 'passive',
+        equipment_slot: 'backpack',
         uses: -1,
         maxUses: -1,
         stats: {
@@ -262,6 +265,7 @@ const TOOL_DATA = {
         weight: 2000,
         slots: 1.0,
         tool_type: 'passive',
+        equipment_slot: 'backpack',
         uses: -1,
         maxUses: -1,
         stats: {

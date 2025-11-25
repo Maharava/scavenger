@@ -196,5 +196,72 @@ const SCRIPT_REGISTRY = {
         if (player && !player.hasComponent('MenuComponent')) {
             game.world.addComponent(player.id, new MenuComponent('How long do you want to sleep?', menuOptions, self));
         }
+    },
+    'openHydroponicsMenu': (game, self, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const hydroponics = self.getComponent('HydroponicsComponent');
+        if (!hydroponics) return;
+
+        if (hydroponics.state === 'empty') {
+            const inventory = player.getComponent('InventoryComponent');
+            const seeds = [];
+            for (const [key, itemData] of inventory.items) {
+                const itemEntity = game.world.getEntity(itemData.entityId);
+                const itemDef = INTERACTABLE_DATA.find(def => def.name === itemEntity.getComponent('NameComponent').name);
+                if (itemDef && itemDef.itemType === 'seed') {
+                    seeds.push(itemDef);
+                }
+            }
+
+            if (seeds.length === 0) {
+                game.world.addComponent(player.id, new MessageComponent('You have no seeds to plant.', 'yellow'));
+                return;
+            }
+
+            const menuOptions = seeds.map(seed => ({
+                label: `Plant ${seed.name}`,
+                action: 'plantSeed',
+                actionArgs: { seedId: seed.id, bayId: self.id }
+            }));
+            menuOptions.push({ label: 'Cancel', action: 'close_menu' });
+
+            game.world.addComponent(player.id, new MenuComponent('Select a seed to plant', menuOptions, self));
+        } else if (hydroponics.state === 'growing') {
+            const days = Math.floor(hydroponics.growthTimer / (24 * 60));
+            const hours = Math.floor((hydroponics.growthTimer % (24 * 60)) / 60);
+            game.world.addComponent(player.id, new MessageComponent(`Growing ${hydroponics.seedId}. Time remaining: ${days}d ${hours}h`, 'cyan'));
+        } else if (hydroponics.state === 'grown') {
+            const menuOptions = [
+                { label: 'Harvest', action: 'harvest', actionArgs: { bayId: self.id } },
+                { label: 'Cancel', action: 'close_menu' }
+            ];
+            game.world.addComponent(player.id, new MenuComponent('The plant is ready to harvest.', menuOptions, self));
+        }
+    },
+    'openExpeditionMenu': (game, self, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        // Check if player is in combat
+        const inCombat = player.hasComponent('CombatStateComponent');
+        if (inCombat) {
+            game.world.addComponent(player.id, new MessageComponent('You cannot start an expedition during combat!', 'red'));
+            return;
+        }
+
+        // Build expedition options from LOCATION_DATA
+        const menuOptions = [];
+        for (const [locationId, locationData] of Object.entries(LOCATION_DATA)) {
+            menuOptions.push({
+                label: `${locationData.name} (${locationData.difficulty})`,
+                action: 'start_expedition',
+                actionArgs: { locationId: locationId }
+            });
+        }
+        menuOptions.push({ label: 'Cancel', action: 'close_menu' });
+
+        game.world.addComponent(player.id, new MenuComponent('Select Expedition Location', menuOptions, self));
     }
 };

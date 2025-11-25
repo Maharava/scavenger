@@ -58,3 +58,6 @@ const SKILL_LEVELUP_CHANCES = {
 const SKILL_DEATH_REGRESSION_COUNT = 2; // Select 2 skills
 const SKILL_DEATH_BASE_CHANCE = 0.25;   // 25% base
 const SKILL_DEATH_LEVEL_PENALTY = 0.10; // +10% per level
+
+// --- Hydroponics System ---
+const HYDROPHONICS_TIME_MULTIPLIER = 20; // 1x, increase for testing

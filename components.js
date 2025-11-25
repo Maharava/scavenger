@@ -498,12 +498,6 @@ class VisibilityStateComponent {
     }
 }
 
-class MapLightingComponent {
-    constructor(enabled = true) {
-        this.enabled = enabled;  // If false, entire map is lit (ship)
-    }
-}
-
 // --- COMBAT COMPONENTS ---
 
 // Marks an entity as being in combat

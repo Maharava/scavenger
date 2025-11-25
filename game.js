@@ -5,8 +5,6 @@
 class Game {
     constructor() {
         this.container = document.getElementById('game-container');
-        this.width = 40;
-        this.height = 15;
         this.world = new World();
         this.world.game = this; // Systems can access game globals via the world
 
@@ -18,7 +16,48 @@ class Game {
         this.lastFrameTime = 0;
         this.messageSystem = new MessageSystem(); // Instantiate MessageSystem here
 
+        // Camera position (centered on player)
+        this.cameraX = 0;
+        this.cameraY = 0;
+
+        // Calculate initial viewport dimensions
+        this.updateViewportDimensions();
+
+        // Update dimensions on window resize
+        window.addEventListener('resize', () => this.updateViewportDimensions());
+
         this.init();
+    }
+
+    updateViewportDimensions(mapWidth = null, mapHeight = null) {
+        // Get the main game area size
+        const gameArea = document.getElementById('main-game-area');
+        const areaRect = gameArea.getBoundingClientRect();
+        const aspectRatio = areaRect.width / areaRect.height;
+
+        // If map dimensions are provided, adjust viewport to fit
+        if (mapWidth && mapHeight) {
+            // For small maps (like the ship), show the whole map plus some buffer
+            if (mapWidth <= 50 && mapHeight <= 30) {
+                this.width = Math.min(mapWidth + 10, 60);
+                this.height = Math.min(mapHeight + 5, 35);
+            } else {
+                // For large maps, use a generous viewport
+                if (aspectRatio > 1.5) {
+                    this.width = 100;
+                    this.height = 35;
+                } else {
+                    this.width = 70;
+                    this.height = 30;
+                }
+            }
+        } else {
+            // Default viewport size (for initial load)
+            this.width = 50;
+            this.height = 20;
+        }
+
+        console.log(`Viewport dimensions: ${this.width}x${this.height} (map: ${mapWidth}x${mapHeight}, aspect: ${aspectRatio.toFixed(2)})`);
     }
 
     init() {
@@ -30,6 +69,7 @@ class Game {
         this.world.registerSystem(new ComfortSystem());
         this.world.registerSystem(new ShipSystem());
         this.world.registerSystem(new TimeSystem()); // Time system for game time, hunger, healing
+        this.world.registerSystem(new HydroponicsSystem());
         // Combat systems
         this.world.registerSystem(new CombatSystem());
         this.world.registerSystem(new ActionResolutionSystem());
@@ -42,7 +82,7 @@ class Game {
         // MessageSystem is updated manually after world.update() to ensure proper message ordering
 
         // Create the game world using the builder
-        buildWorld(this.world, 'CRYOBAY_7');
+        buildWorld(this.world, 'SHIP');
 
         // Start the game loop
         this.lastFrameTime = performance.now();

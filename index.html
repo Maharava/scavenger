@@ -3,17 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rogue-like</title>
+    <title>Scavenger</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app-wrapper">
         <div id="main-game-area">
-            <h1>Rogue-like</h1>
-            <div style="position: relative;">
-                <div id="game-container">
-                    <div id="item-name-overlay-container"></div>
-                </div>
+            <div id="game-container">
+                <div id="item-name-overlay-container"></div>
             </div>
             <div id="message-overlay-container"></div>
         </div>
@@ -67,6 +64,7 @@
     <!-- ECS Foundation -->
     <script src="ecs.js"></script>
     <script src="components.js"></script>
+    <script src="components/hydroponics-components.js"></script>
 
     <!-- Systems -->
     <script src="systems/render-system.js"></script>
@@ -80,6 +78,7 @@
     <script src="systems/comfort-system.js"></script>
     <script src="systems/ship-system.js"></script>
     <script src="systems/time-system.js"></script>
+    <script src="systems/hydroponics-system.js"></script>
 
     <!-- Combat Systems -->
     <script src="systems/combat/combat-system.js"></script>
@@ -97,6 +96,8 @@
     <!-- Utilities -->
     <script src="utils/helpers.js"></script>
     <script src="utils/equipment-stats.js"></script>
+    <script src="utils/seeded-random.js"></script>
+    <script src="utils/ship-persistence.js"></script>
 
     <!-- Handlers -->
     <script src="handlers/menu-actions.js"></script>
@@ -105,9 +106,14 @@
     <!-- Game Data -->
     <script src="gamedata/creatures.js"></script>
     <script src="gamedata/interactables.js"></script>
+    <script src="gamedata/hydroponics-data.js"></script>
     <script src="gamedata/equipment.js"></script>
     <script src="gamedata/tools.js"></script>
+    <script src="gamedata/locations.js"></script>
     <script src="gamedata/map.js"></script>
+
+    <!-- Procedural Generation -->
+    <script src="systems/procgen-system.js"></script>
 
     <!-- World Builder & Game Orchestrator -->
     <script src="world-builder.js"></script>

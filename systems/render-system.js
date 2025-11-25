@@ -36,6 +36,30 @@ class RenderSystem extends System {
             isPlayerTurn = player && activeId === player.id;
         }
 
+        // --- Camera System: Center on player ---
+        if (player) {
+            const playerPos = player.getComponent('PositionComponent');
+            if (playerPos) {
+                // Center camera on player
+                let camX = Math.floor(playerPos.x - width / 2);
+                let camY = Math.floor(playerPos.y - height / 2);
+
+                // Get map dimensions from layout
+                const mapHeight = world.game.mapInfo.layout ? world.game.mapInfo.layout.length : height;
+                const mapWidth = world.game.mapInfo.layout ? world.game.mapInfo.layout[0].length : width;
+
+                // Clamp camera to map bounds
+                camX = Math.max(0, Math.min(camX, mapWidth - width));
+                camY = Math.max(0, Math.min(camY, mapHeight - height));
+
+                world.game.cameraX = camX;
+                world.game.cameraY = camY;
+            }
+        }
+
+        const cameraX = world.game.cameraX;
+        const cameraY = world.game.cameraY;
+
         // --- Grid Rendering ---
         const grid = Array.from({ length: height }, () =>
             Array.from({ length: width }, () => ({ char: ' ', colour: '#000' }))
@@ -56,6 +80,15 @@ class RenderSystem extends System {
             const vis = entity.getComponent('VisibilityStateComponent');
             const isSolid = entity.hasComponent('SolidComponent');
 
+            // Calculate screen position relative to camera
+            const screenX = pos.x - cameraX;
+            const screenY = pos.y - cameraY;
+
+            // Skip if outside viewport
+            if (screenX < 0 || screenX >= width || screenY < 0 || screenY >= height) {
+                continue;
+            }
+
             if (lightingEnabled && vis) {
                 if (vis.state === 'never_seen') {
                     // Never seen - don't render anything
@@ -65,12 +98,10 @@ class RenderSystem extends System {
                 if (vis.state === 'revealed') {
                     // Revealed state - render tiles (layer 0) and solid objects (doors, etc.) in grey
                     if (render.layer === 0 || isSolid) {
-                        if (pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height) {
-                            grid[pos.y][pos.x] = {
-                                char: render.char,
-                                colour: '#333'
-                            };
-                        }
+                        grid[screenY][screenX] = {
+                            char: render.char,
+                            colour: '#333'
+                        };
                     }
                     continue;
                 }
@@ -84,12 +115,10 @@ class RenderSystem extends System {
                 continue; // Don't render = appears to blink off
             }
 
-            if (pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height) {
-                grid[pos.y][pos.x] = {
-                    char: render.char,
-                    colour: isSelectedEnemy ? '#ffff00' : render.colour // Yellow when selected
-                };
-            }
+            grid[screenY][screenX] = {
+                char: render.char,
+                colour: isSelectedEnemy ? '#ffff00' : render.colour // Yellow when selected
+            };
         }
 
         // Preserve the overlay before clearing
@@ -98,6 +127,7 @@ class RenderSystem extends System {
 
         container.innerHTML = '';
         container.style.gridTemplateColumns = `repeat(${width}, 1fr)`;
+        container.style.gridTemplateRows = `repeat(${height}, 1fr)`;
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const tileData = grid[y][x];
@@ -328,30 +358,44 @@ class RenderSystem extends System {
         const gunStats = weapon.getComponent('GunStatsComponent');
         const playerPos = player.getComponent('PositionComponent');
         const weaponRange = gunStats.range;
+        const cameraX = world.game.cameraX;
+        const cameraY = world.game.cameraY;
 
         // Clear existing range indicators
         const existingIndicators = container.querySelectorAll('.range-indicator');
         existingIndicators.forEach(el => el.remove());
 
         // Render range indicators for all tiles within weapon range
-        for (let y = 0; y < world.game.height; y++) {
-            for (let x = 0; x < world.game.width; x++) {
-                const distance = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
+        const minX = Math.max(0, playerPos.x - weaponRange);
+        const maxX = playerPos.x + weaponRange;
+        const minY = Math.max(0, playerPos.y - weaponRange);
+        const maxY = playerPos.y + weaponRange;
+
+        for (let worldY = minY; worldY <= maxY; worldY++) {
+            for (let worldX = minX; worldX <= maxX; worldX++) {
+                const distance = Math.abs(worldX - playerPos.x) + Math.abs(worldY - playerPos.y);
 
                 if (distance <= weaponRange && distance > 0) { // Exclude player's own tile
-                    const rangeElement = document.createElement('div');
-                    rangeElement.className = 'range-indicator';
-                    rangeElement.style.position = 'absolute';
-                    rangeElement.style.left = `${x * TILE_SIZE}px`;
-                    rangeElement.style.top = `${y * TILE_SIZE}px`;
-                    rangeElement.style.width = `${TILE_SIZE}px`;
-                    rangeElement.style.height = `${TILE_SIZE}px`;
-                    rangeElement.style.backgroundColor = 'rgba(255, 255, 0, 0.2)'; // Transparent yellow
-                    rangeElement.style.border = '1px solid rgba(255, 255, 0, 0.4)';
-                    rangeElement.style.pointerEvents = 'none'; // Don't block clicks
-                    rangeElement.style.zIndex = '5';
+                    // Calculate screen position
+                    const screenX = worldX - cameraX;
+                    const screenY = worldY - cameraY;
 
-                    container.appendChild(rangeElement);
+                    // Only render if visible in viewport
+                    if (screenX >= 0 && screenX < world.game.width && screenY >= 0 && screenY < world.game.height) {
+                        const rangeElement = document.createElement('div');
+                        rangeElement.className = 'range-indicator';
+                        rangeElement.style.position = 'absolute';
+                        rangeElement.style.left = `${screenX * TILE_SIZE}px`;
+                        rangeElement.style.top = `${screenY * TILE_SIZE}px`;
+                        rangeElement.style.width = `${TILE_SIZE}px`;
+                        rangeElement.style.height = `${TILE_SIZE}px`;
+                        rangeElement.style.backgroundColor = 'rgba(255, 255, 0, 0.2)'; // Transparent yellow
+                        rangeElement.style.border = '1px solid rgba(255, 255, 0, 0.4)';
+                        rangeElement.style.pointerEvents = 'none'; // Don't block clicks
+                        rangeElement.style.zIndex = '5';
+
+                        container.appendChild(rangeElement);
+                    }
                 }
             }
         }
@@ -361,6 +405,8 @@ class RenderSystem extends System {
         const TILE_SIZE = 20; // Should match style.css
         const entities = world.query(['PositionComponent', 'NameComponent']);
         const inputSystem = world.systems.find(s => s instanceof InputSystem);
+        const cameraX = world.game.cameraX;
+        const cameraY = world.game.cameraY;
 
         // Separate hovered and non-hovered entities
         const hoveredEntities = [];
@@ -374,6 +420,22 @@ class RenderSystem extends System {
 
             if (isItem || (isInteractable && !isDoor)) {
                 const pos = entity.getComponent('PositionComponent');
+                const vis = entity.getComponent('VisibilityStateComponent');
+
+                // Show items that are visible or revealed (in fog of war)
+                // Skip items that were never seen
+                if (vis && vis.state === 'never_seen') {
+                    continue;
+                }
+
+                // Calculate screen position
+                const screenX = pos.x - cameraX;
+                const screenY = pos.y - cameraY;
+
+                // Skip if outside viewport
+                if (screenX < 0 || screenX >= world.game.width || screenY < 0 || screenY >= world.game.height) {
+                    continue;
+                }
 
                 // Check if this entity is at the hovered tile position
                 const isHovered = inputSystem &&
@@ -393,12 +455,15 @@ class RenderSystem extends System {
             const pos = entity.getComponent('PositionComponent');
             const name = entity.getComponent('NameComponent').name;
 
+            const screenX = pos.x - cameraX;
+            const screenY = pos.y - cameraY;
+
             const nameElement = document.createElement('div');
             nameElement.className = 'item-name-tag';
             nameElement.textContent = name;
 
-            nameElement.style.left = `${pos.x * TILE_SIZE + (TILE_SIZE / 2)}px`;
-            nameElement.style.top = `${(pos.y * TILE_SIZE) - 16}px`;
+            nameElement.style.left = `${screenX * TILE_SIZE + (TILE_SIZE / 2)}px`;
+            nameElement.style.top = `${(screenY * TILE_SIZE) - 16}px`;
             nameElement.style.zIndex = '10';
 
             overlayContainer.appendChild(nameElement);
@@ -409,12 +474,15 @@ class RenderSystem extends System {
             const pos = entity.getComponent('PositionComponent');
             const name = entity.getComponent('NameComponent').name;
 
+            const screenX = pos.x - cameraX;
+            const screenY = pos.y - cameraY;
+
             const nameElement = document.createElement('div');
             nameElement.className = 'item-name-tag item-name-tag-hovered';
             nameElement.textContent = name;
 
-            nameElement.style.left = `${pos.x * TILE_SIZE + (TILE_SIZE / 2)}px`;
-            nameElement.style.top = `${(pos.y * TILE_SIZE) - 16}px`;
+            nameElement.style.left = `${screenX * TILE_SIZE + (TILE_SIZE / 2)}px`;
+            nameElement.style.top = `${(screenY * TILE_SIZE) - 16}px`;
             nameElement.style.zIndex = '100'; // Higher z-index for hovered items
 
             overlayContainer.appendChild(nameElement);

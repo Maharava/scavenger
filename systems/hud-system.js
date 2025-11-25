@@ -47,11 +47,12 @@ class HudSystem extends System {
         }
 
         // Display inventory weight and slots
+        // Max values are modified by equipped tools (e.g., Grav Ball adds +20% weight, backpacks add slots)
         if (inventory) {
             const currentWeight = inventory.getTotalWeight(world);
-            const maxWeight = inventory.maxWeight;
+            const maxWeight = getPlayerMaxWeight(world, player);  // Includes tool bonuses (e.g., Grav Ball +20%)
             const usedSlots = inventory.getTotalSlotsUsed(world);
-            const maxSlots = inventory.capacity;
+            const maxSlots = getPlayerMaxSlots(world, player);    // Includes tool bonuses (e.g., backpack slots)
 
             document.getElementById('hud-weight').textContent = `Weight: ${currentWeight}g/${maxWeight}g`;
             document.getElementById('hud-inventory').textContent = `Slots: ${usedSlots.toFixed(1)}/${maxSlots}`;

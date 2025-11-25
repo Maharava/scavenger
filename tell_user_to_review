@@ -1,0 +1,25 @@
+
+
+Combat UI
+Missing High Priority:
+    - End Turn button (visual UI) - remove any reference to this from the game, including docs
+    - Flee button with distance validation - remove any reference to this from the game, including docs
+    - Click-to-shoot on enemies - remove any reference to this from the game, including docs
+    - Turn indicator panel with movement counter - remove any reference to this from the game, including docs
+    - Enemy health bars - implement
+  - Missing Medium Priority:
+    - Equipment screen read-only mode in combat - implement
+    - Fleeing restrictions (limbs < 30%) - implement
+    - Line-of-sight detection (currently placeholder) - leave this for now, put it in 'todo.md'
+    - Heavy armor movement penalty - leave this for now, put in todo
+  - Missing Low Priority:
+    - Corpse spawning & looting - implement corpses as inventory containers
+    - Player death system - implement, with fade to black, large red letters saying 'DEATH', loss of all inventory (including equipped stuff) and respawn on the ship
+    - Item usage in combat - leave for now, put in todo
+    - Advanced AI behaviors - leave for now, put in todo
+	
+
+ Clarifying Questions
+
+
+  Let me know your answers and I'll create a comprehensive implementation plan!

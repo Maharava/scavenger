@@ -4,8 +4,10 @@ class MovementSystem extends System {
     update(world) {
         const entities = world.query(['ActionComponent', 'PositionComponent']);
         const solidEntities = world.query(['PositionComponent', 'SolidComponent']);
-        const width = world.game.width;
-        const height = world.game.height;
+
+        // Use map dimensions, not viewport dimensions
+        const width = world.mapWidth || world.game.width;
+        const height = world.mapHeight || world.game.height;
 
         for (const entity of entities) {
             const action = entity.getComponent('ActionComponent');
