@@ -58,12 +58,21 @@ function buildWorld(world, mapId, generatedMap = null) {
     map.interactables.forEach(item => {
         let def = INTERACTABLE_DATA.find(i => i.id === item.id);
 
-        // If not found in INTERACTABLE_DATA, check EQUIPMENT_DATA, then TOOL_DATA
+        // If not found in INTERACTABLE_DATA, check other data sources
         if (!def) {
             def = EQUIPMENT_DATA.find(i => i.id === item.id);
         }
         if (!def) {
             def = TOOL_DATA[item.id];
+        }
+        if (!def) {
+            def = MATERIAL_DATA[item.id];
+        }
+        if (!def) {
+            def = FOOD_DATA.find(i => i.id === item.id);
+        }
+        if (!def) {
+            def = ITEM_DATA.find(i => i.id === item.id);
         }
 
         if (!def) {
@@ -73,7 +82,17 @@ function buildWorld(world, mapId, generatedMap = null) {
 
         const entity = world.createEntity();
         world.addComponent(entity, new PositionComponent(item.x, item.y));
-        world.addComponent(entity, new RenderableComponent(def.char, def.colour, 1));
+
+        // For producers, get visual properties from producer config
+        let char = def.char;
+        let colour = def.colour;
+        if (def.producerType && PRODUCER_TYPES[def.producerType]) {
+            const producerConfig = PRODUCER_TYPES[def.producerType];
+            char = producerConfig.char || def.char;
+            colour = producerConfig.colour || def.colour;
+        }
+
+        world.addComponent(entity, new RenderableComponent(char, colour, 1));
         world.addComponent(entity, new NameComponent(def.name));
         world.addComponent(entity, new VisibilityStateComponent());
 
@@ -141,6 +160,11 @@ function buildWorld(world, mapId, generatedMap = null) {
                 }
             }
              world.addComponent(entity, new InteractableComponent('pickupItem', {}));
+        } else if (def.stackable) {
+            // Stackable materials (crafting components, salvage, etc.)
+            world.addComponent(entity, new ItemComponent(def.name, def.description, def.weight || 0, def.slots || 0.5));
+            world.addComponent(entity, new StackableComponent(item.quantity || 1, def.stackLimit || 99));
+            world.addComponent(entity, new InteractableComponent('pickupItem', {}));
         } else if (def.script === 'pickupItem') {
             // Original consumable item handling
             world.addComponent(entity, new ItemComponent(def.name, '', def.weight || 0));
@@ -157,8 +181,8 @@ function buildWorld(world, mapId, generatedMap = null) {
             world.addSolidTileToCache(item.x, item.y); // Add to cache for LOS calculations
         }
 
-        if (def.id === 'HYDROPONICS_BAY') {
-            world.addComponent(entity, new HydroponicsComponent());
+        if (def.producerType) {
+            world.addComponent(entity, new ProducerComponent(def.producerType));
         }
 
         if (def.lightRadius && def.lightRadius > 0) {
@@ -214,7 +238,10 @@ function buildWorld(world, mapId, generatedMap = null) {
     const seeds_to_add = ["LETTUCE_SEEDS", "RICE_SEEDS", "STRAWBERRY_SEEDS", "TOMATO_SEEDS", "SOYBEAN_SEEDS"];
 
     for (const seed_id of seeds_to_add) {
-        const seedDef = INTERACTABLE_DATA.find(item => item.id === seed_id);
+        // Look for seeds in ITEM_DATA
+        let seedDef = ITEM_DATA.find(item => item.id === seed_id);
+        if (!seedDef) seedDef = INTERACTABLE_DATA.find(item => item.id === seed_id); // fallback
+
         if (seedDef) {
             const seedEntity = world.createEntity();
             world.addComponent(seedEntity, new ItemComponent(seedDef.name, '', seedDef.weight || 0, seedDef.slots || 0));
@@ -223,9 +250,9 @@ function buildWorld(world, mapId, generatedMap = null) {
 
             if (playerInventory.items.has(seedDef.name)) {
                 const existingStack = playerInventory.items.get(seedDef.name);
-                existingStack.quantity++;
+                existingStack.quantity += 5; // Give 5 of each seed for testing
             } else {
-                playerInventory.items.set(seedDef.name, { entityId: seedEntity, quantity: 1 });
+                playerInventory.items.set(seedDef.name, { entityId: seedEntity, quantity: 5 });
             }
         }
     }
@@ -233,7 +260,13 @@ function buildWorld(world, mapId, generatedMap = null) {
     // Create ship entity if this is the SHIP map
     if (mapId === 'SHIP') {
         const ship = world.createEntity();
-        world.addComponent(ship, new ShipComponent(100, 100)); // 100L water, 100L fuel
+        world.addComponent(ship, new ShipComponent(90, 100)); // 90L water (for testing), 100L fuel
+
+        // Load saved ship state (if returning from expedition)
+        const player = world.query(['PlayerComponent'])[0];
+        if (player) {
+            loadShipState(world, player);
+        }
     }
 
     // Store map metadata in a global entity or directly in the world?
@@ -286,10 +319,11 @@ function spawnEnemy(world, enemyDefId, x, y) {
         bodyParts.setPart('limbs', enemyDef.body.limbs);
     }
 
-    // Add AI component
+    // Add AI component with stealth rating
     world.addComponent(enemyId, new AIComponent(
         enemyDef.aiType || 'aggressive',
-        enemyDef.detectionRange || 10
+        enemyDef.detectionRange || 10,
+        enemyDef.stealth || 20
     ));
 
     // Set morale for humanoid enemies

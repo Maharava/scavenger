@@ -72,9 +72,9 @@ class SkillsSystem extends System {
         // Get base chance for this level transition
         let chance = SKILL_LEVELUP_CHANCES[currentLevel] || 0;
 
-        // Apply stress penalty if stress > 60
+        // Apply stress penalty if stress is high (>60)
         if (stats.stress > SKILL_STRESS_THRESHOLD) {
-            chance *= 0.5; // Halve the chance
+            chance *= 0.5; // Halve the chance when stressed
         }
 
         // Roll for level up
@@ -182,9 +182,9 @@ class SkillsSystem extends System {
         // Get base chance for this level transition
         let chance = SKILL_LEVELUP_CHANCES[currentLevel] || 0;
 
-        // Apply stress penalty if stress > 60
+        // Apply stress penalty if stress is high (>60)
         if (stats.stress > SKILL_STRESS_THRESHOLD) {
-            chance *= 0.5; // Halve the chance
+            chance *= 0.5; // Halve the chance when stressed
         }
 
         // Roll for level up

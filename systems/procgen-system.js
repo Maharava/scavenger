@@ -623,7 +623,7 @@ function finalizeMap(state) {
 
     // Add airlock (return to ship)
     if (state.airlockPos) {
-        allInteractables.push({ id: 'Airlock', x: state.airlockPos.x, y: state.airlockPos.y });
+        allInteractables.push({ id: 'Airlock_Return', x: state.airlockPos.x, y: state.airlockPos.y });
     }
 
     // Build final map object

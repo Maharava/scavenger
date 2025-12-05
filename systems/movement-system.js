@@ -5,9 +5,10 @@ class MovementSystem extends System {
         const entities = world.query(['ActionComponent', 'PositionComponent']);
         const solidEntities = world.query(['PositionComponent', 'SolidComponent']);
 
-        // Use map dimensions, not viewport dimensions
-        const width = world.mapWidth || world.game.width;
-        const height = world.mapHeight || world.game.height;
+        // Use actual map dimensions from layout, not viewport dimensions
+        const mapInfo = world.game.mapInfo;
+        const width = mapInfo && mapInfo.width ? mapInfo.width : world.game.width;
+        const height = mapInfo && mapInfo.height ? mapInfo.height : world.game.height;
 
         for (const entity of entities) {
             const action = entity.getComponent('ActionComponent');
@@ -113,6 +114,15 @@ class MovementSystem extends System {
 
         // 3. Armor penalty (future implementation - heavy armor)
         // TODO: Add armor weight penalty
+
+        // 4. Temperature zone penalty (applies when temperature system is active)
+        // TODO: Get temperature zone from TemperatureSystem when implemented
+        const tempZone = world.tempZone || 'comfortable'; // Default comfortable
+        if (tempZone === 'harsh') {
+            movementMax -= 1; // -1 movement in harsh conditions
+        } else if (tempZone === 'extreme') {
+            movementMax -= 2; // -2 movement in extreme conditions
+        }
 
         // Minimum 1 tile (always can move at least 1 tile)
         return Math.max(1, movementMax);

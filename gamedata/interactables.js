@@ -46,19 +46,6 @@ const INTERACTABLE_DATA = [
         }
     },
     {
-        "id": "RICE_PATTY",
-        "name": "Rice Patty",
-        "char": "*",
-        "colour": "#e0e0e0",
-        "solid": false,
-        "weight": 50,
-        "script": "pickupItem",
-        "scriptArgs": {
-            "effect": "RESTORE_HUNGER",
-            "value": 15
-        }
-    },
-    {
         "id": "WORKBENCH",
         "name": "Workbench",
         "char": "W",
@@ -77,158 +64,20 @@ const INTERACTABLE_DATA = [
         "scriptArgs": {}
     },
     {
-        "id": "MEDKIT",
-        "name": "Medkit",
-        "char": "+",
-        "colour": "#90ee90",
-        "solid": false,
-        "weight": 100,
-        "slots": 0.1,
-        "script": "pickupItem",
-        "scriptArgs": {
-            "effect": "HEAL_BODYPART_MENU", // New effect to open submenu
-            "value": 5 // healing value
-        }
-    },
-    // Seeds
-    {
-        "id": "LETTUCE_SEEDS",
-        "name": "Lettuce Seeds",
-        "char": ",",
-        "colour": "#8f8",
-        "solid": false,
-        "weight": 10,
-        "slots": 0.1,
-        "itemType": "seed",
-        "script": "pickupItem",
-        "scriptArgs": {}
-    },
-    {
-        "id": "RICE_SEEDS",
-        "name": "Rice Seeds",
-        "char": ",",
-        "colour": "#e0e0e0",
-        "solid": false,
-        "weight": 10,
-        "slots": 0.1,
-        "itemType": "seed",
-        "script": "pickupItem",
-        "scriptArgs": {}
-    },
-    {
-        "id": "STRAWBERRY_SEEDS",
-        "name": "Strawberry Seeds",
-        "char": ",",
-        "colour": "#ff0000",
-        "solid": false,
-        "weight": 10,
-        "slots": 0.1,
-        "itemType": "seed",
-        "script": "pickupItem",
-        "scriptArgs": {}
-    },
-    {
-        "id": "TOMATO_SEEDS",
-        "name": "Tomato Seeds",
-        "char": ",",
-        "colour": "#ff6347",
-        "solid": false,
-        "weight": 10,
-        "slots": 0.1,
-        "itemType": "seed",
-        "script": "pickupItem",
-        "scriptArgs": {}
-    },
-    {
-        "id": "SOYBEAN_SEEDS",
-        "name": "Soybean Seeds",
-        "char": ",",
-        "colour": "#f5f5dc",
-        "solid": false,
-        "weight": 10,
-        "slots": 0.1,
-        "itemType": "seed",
-        "script": "pickupItem",
-        "scriptArgs": {}
-    },
-    // Produce
-    {
-        "id": "LETTUCE",
-        "name": "Lettuce",
-        "char": "%",
-        "colour": "#8f8",
-        "solid": false,
-        "weight": 300,
-        "slots": 0.25,
-        "script": "pickupItem",
-        "scriptArgs": {
-            "effect": "RESTORE_HUNGER",
-            "value": 1
-        }
-    },
-    {
-        "id": "RICE",
-        "name": "Rice",
-        "char": "%",
-        "colour": "#e0e0e0",
-        "solid": false,
-        "weight": 200,
-        "slots": 0.25,
-        "script": "pickupItem",
-        "scriptArgs": {
-            "effect": "RESTORE_HUNGER",
-            "value": 2
-        }
-    },
-    {
-        "id": "STRAWBERRY",
-        "name": "Strawberry",
-        "char": "%",
-        "colour": "#ff0000",
-        "solid": false,
-        "weight": 100,
-        "slots": 0.25,
-        "script": "pickupItem",
-        "scriptArgs": {
-            "effect": "RESTORE_HUNGER",
-            "value": 2
-        }
-    },
-    {
-        "id": "TOMATO",
-        "name": "Tomato",
-        "char": "%",
-        "colour": "#ff6347",
-        "solid": false,
-        "weight": 150,
-        "slots": 0.25,
-        "script": "pickupItem",
-        "scriptArgs": {
-            "effect": "RESTORE_HUNGER",
-            "value": 3
-        }
-    },
-    {
-        "id": "SOYBEANS",
-        "name": "Soybeans",
-        "char": "%",
-        "colour": "#f5f5dc",
-        "solid": false,
-        "weight": 200,
-        "slots": 0.25,
-        "script": "pickupItem",
-        "scriptArgs": {
-            "effect": "RESTORE_HUNGER",
-            "value": 2
-        }
-    },
-    {
         "id": "HYDROPONICS_BAY",
         "name": "Hydroponics Bay",
-        "char": "H",
-        "colour": "#0f0",
         "solid": true,
-        "script": "openHydroponicsMenu",
+        "producerType": "HYDROPONICS",
+        "script": "openProducerMenu",
+        "scriptArgs": {}
+    },
+    {
+        "id": "WATER_TANK",
+        "name": "Water Tank",
+        "char": "W",
+        "colour": "#4682b4",
+        "solid": true,
+        "script": "refillWaterTank",
         "scriptArgs": {}
     },
     {
@@ -238,6 +87,15 @@ const INTERACTABLE_DATA = [
         "colour": "#0ff",
         "solid": true,
         "script": "openExpeditionMenu",
+        "scriptArgs": {}
+    },
+    {
+        "id": "Airlock_Return",
+        "name": "Airlock (Return to Ship)",
+        "char": "A",
+        "colour": "#0f0",
+        "solid": true,
+        "script": "returnToShip",
         "scriptArgs": {}
     }
 ];

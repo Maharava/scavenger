@@ -18,6 +18,15 @@ const TILE_SIZE = 20; // pixels per tile
 // --- Lighting System ---
 const BASE_PLAYER_LIGHT_RADIUS = 6; // Default light radius without equipment
 
+// --- Weight System ---
+const BASE_MAX_WEIGHT = 13000; // 13kg soft limit (before bonuses like Grav Ball)
+const HARD_MAX_WEIGHT = 15000; // 15kg hard limit (absolute maximum)
+// Equipment weight multipliers when equipped
+const EQUIPPED_ARMOR_WEIGHT_MULT = 0.5; // 50% weight reduction for worn armor in body slot
+const EQUIPPED_TOOL_WEIGHT_MULT = 0.5; // 50% weight reduction for tools in tool slots
+const EQUIPPED_GUN_WEIGHT_MULT = 1.0; // 100% weight (no reduction) for guns in hand slot
+const EQUIPPED_BACKPACK_WEIGHT_MULT = 1.0; // 100% weight (no reduction) for backpack
+
 // --- Ship Systems ---
 const WATER_CONSUMPTION_INTERVAL_MS = 30000; // 30 seconds
 
@@ -59,5 +68,6 @@ const SKILL_DEATH_REGRESSION_COUNT = 2; // Select 2 skills
 const SKILL_DEATH_BASE_CHANCE = 0.25;   // 25% base
 const SKILL_DEATH_LEVEL_PENALTY = 0.10; // +10% per level
 
-// --- Hydroponics System ---
-const HYDROPHONICS_TIME_MULTIPLIER = 20; // 1x, increase for testing
+// --- Producer System ---
+const PRODUCER_TIME_MULTIPLIER = 1; // Speed multiplier for all producers (hydroponics, smelters, etc.) - 1x is real-time, increase for testing
+const HYDROPONICS_WATER_PER_HOUR = 0.5; // Liters of water consumed per active hydroponics bay per hour

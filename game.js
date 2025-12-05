@@ -66,10 +66,13 @@ class Game {
         this.world.registerSystem(new InteractionSystem());
         this.world.registerSystem(new MovementSystem());
         this.world.registerSystem(new LightingSystem());
+        this.world.registerSystem(new MotionTrackerSystem());
         this.world.registerSystem(new ComfortSystem());
         this.world.registerSystem(new ShipSystem());
         this.world.registerSystem(new TimeSystem()); // Time system for game time, hunger, healing
-        this.world.registerSystem(new HydroponicsSystem());
+        this.world.registerSystem(new ProducerSystem());
+        this.world.registerSystem(new SkillsSystem());
+        this.world.registerSystem(new TemperatureSystem());
         // Combat systems
         this.world.registerSystem(new CombatSystem());
         this.world.registerSystem(new ActionResolutionSystem());

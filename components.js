@@ -94,7 +94,8 @@ class CreatureStatsComponent {
         this.hunger = initialHunger;
         this.rest = 100;
         this.stress = 0;
-        this.comfort = 50; // Base comfort is 50
+        this.baseComfort = 50; // Base comfort value (modified by armor, weight, temperature, hunger)
+        this.comfort = 50; // Final comfort (baseComfort + timed modifiers from ComfortModifiersComponent)
         // Temperature comfort range (in Celsius)
         this.baseMinComfortTemp = 10; // Base minimum comfortable temperature
         this.baseMaxComfortTemp = 30; // Base maximum comfortable temperature
@@ -207,7 +208,7 @@ class InventoryComponent {
     getTotalWeight(world) {
         let totalWeight = 0;
 
-        // Weight from inventory items
+        // Weight from inventory items (full weight)
         for (const [itemName, itemData] of this.items) {
             const itemEntity = world.getEntity(itemData.entityId);
             if (itemEntity) {
@@ -216,39 +217,23 @@ class InventoryComponent {
             }
         }
 
-        // Weight from equipped items
+        // Weight from equipped items (uses weight multipliers based on slot and equipment type)
         const player = world.query(['PlayerComponent'])[0];
         if (player) {
             const equipped = player.getComponent('EquippedItemsComponent');
             if (equipped) {
-                // Hand slot: Guns retain full weight
-                if (equipped.hand) {
-                    const handEquipment = world.getEntity(equipped.hand);
-                    if (handEquipment) {
-                        const equipmentWeight = calculateEquipmentWeight(world, handEquipment);
-                        totalWeight += equipmentWeight;
-                    }
-                }
+                // Process all equipment slots
+                const slots = ['hand', 'body', 'tool1', 'tool2', 'backpack'];
+                for (const slotName of slots) {
+                    const equipmentId = equipped[slotName];
+                    if (!equipmentId) continue;
 
-                // Body slot: Armor is weightless
-                if (equipped.body) {
-                    // totalWeight += 0;
-                }
+                    const equipmentEntity = world.getEntity(equipmentId);
+                    if (!equipmentEntity) continue;
 
-                // Tool slots: Tools are 50% weight
-                if (equipped.tool1) {
-                    const tool1Equipment = world.getEntity(equipped.tool1);
-                    if (tool1Equipment) {
-                        const equipmentWeight = calculateEquipmentWeight(world, tool1Equipment);
-                        totalWeight += equipmentWeight * 0.5;
-                    }
-                }
-                if (equipped.tool2) {
-                    const tool2Equipment = world.getEntity(equipped.tool2);
-                    if (tool2Equipment) {
-                        const equipmentWeight = calculateEquipmentWeight(world, tool2Equipment);
-                        totalWeight += equipmentWeight * 0.5;
-                    }
+                    const equipmentWeight = calculateEquipmentWeight(world, equipmentEntity);
+                    const weightMultiplier = getEquippedWeightMultiplier(world, equipmentEntity, slotName);
+                    totalWeight += equipmentWeight * weightMultiplier;
                 }
             }
         }
@@ -265,10 +250,12 @@ class InventoryComponent {
         const newWeight = this.getTotalWeight(world) + (equipmentWeight * itemCount);
         const newSlots = this.getTotalSlotsUsed(world) + (itemComponent.slots * itemCount);
 
-        // Hard limit: 4500g (150% of maxWeight)
-        const HARD_WEIGHT_LIMIT = this.maxWeight * 1.5;
+        // Get player to determine effective max slots (considering tool bonuses)
+        const player = world.query(['PlayerComponent'])[0];
+        const maxSlots = player ? getPlayerMaxSlots(world, player) : this.capacity;
 
-        return newWeight <= HARD_WEIGHT_LIMIT && newSlots <= this.capacity;
+        // Use HARD_MAX_WEIGHT as absolute limit (15kg)
+        return newWeight <= HARD_MAX_WEIGHT && newSlots <= maxSlots;
     }
 }
 
@@ -337,6 +324,8 @@ class ArmourStatsComponent {
         // Temperature comfort modifiers
         this.tempMax = 0; // Increases maximum comfortable temperature
         this.tempMin = 0; // Decreases minimum comfortable temperature (use positive values)
+        // Comfort modifier (flat bonus/penalty while equipped, non-stacking)
+        this.comfort = 0; // Flat comfort modifier (e.g., -5 for heavy armor, +3 for padded)
     }
 
     // Get durability as percentage of max
@@ -425,6 +414,13 @@ class MenuComponent {
     }
 }
 
+class SelectionMenuComponent {
+    constructor(interactables) {
+        this.interactables = interactables; // Array of {entity, name, position}
+        this.selectedIndex = 0;
+    }
+}
+
 class MessageComponent {
     constructor(text, colour = 'white') {
         this.text = text;
@@ -476,10 +472,13 @@ class ToolComponent {
 
 class ToolStatsComponent {
     constructor(stats = {}) {
+        this.skillBoosts = stats.skillBoosts || {};     // Skill bonuses { medical: 1, cooking: 2, ... }
+        this.statBoosts = stats.statBoosts || {};       // Stat bonuses { inventorySlots: 2, maxWeight: 20, ... }
         this.lightRadius = stats.lightRadius || 0;      // Light emission (0 = none)
         this.scanRange = stats.scanRange || 0;          // Scanner detection range
         this.effectiveness = stats.effectiveness || 0;  // Tool power (100 = max)
         this.specialAbility = stats.specialAbility || null;  // Unique ability ID
+        this.abilityArgs = stats.abilityArgs || {};     // Arguments for special abilities
     }
 }
 
@@ -519,6 +518,7 @@ class CombatantComponent {
         this.stunned = false;                     // Skip next turn
         this.bleeding = false;                    // Take damage per turn
         this.infected = 0;                        // Turns remaining of infection
+        this.chaffUsedThisCycle = false;          // Chaff Spitter used this turn cycle
     }
 }
 
@@ -534,6 +534,7 @@ class CombatSessionComponent {
         this.playerInitiated = playerInitiated;   // True if player started combat (first strike bonus)
         this.firstStrikeBonusUsed = false;        // Track if first strike bonus already applied
         this.state = 'active';                    // 'starting', 'active', 'ending'
+        this.totalTurns = 0;                      // Total turns across all rounds (for time tracking)
     }
 
     getActiveCombatant() {
@@ -542,6 +543,7 @@ class CombatSessionComponent {
 
     advanceTurn() {
         this.activeIndex++;
+        this.totalTurns++; // Increment total turn counter
         if (this.activeIndex >= this.turnOrder.length) {
             this.activeIndex = 0;
             this.round++;
@@ -563,9 +565,11 @@ class DamageEventComponent {
 
 // Enemy AI configuration
 class AIComponent {
-    constructor(behaviorType = 'aggressive', detectionRange = 8) {
+    constructor(behaviorType = 'aggressive', detectionRange = 8, stealth = 20) {
         this.behaviorType = behaviorType;         // 'aggressive', 'defensive', 'passive', 'fleeing'
         this.detectionRange = detectionRange;     // Tiles (line-of-sight required)
+        this.stealth = stealth;                   // Stealth rating (0-100, affects Motion Tracker detection)
+        this.trackedByMotionTracker = false;      // True if detected by Motion Tracker
         this.state = 'idle';                      // 'idle', 'patrolling', 'combat', 'fleeing'
         this.target = null;                       // Target entity ID
         this.morale = 100;                        // For humanoid enemies (flee at <30)
@@ -695,6 +699,8 @@ class TimeComponent {
         this.hours = hours;       // 0-23
         this.minutes = minutes;   // 0-59
         this.totalMinutes = hours * 60 + minutes; // Total minutes since start
+        this.day = 1;             // Current day (starts at 1, increments at 0000)
+        this.lastDayOnShip = 1;   // Last day player was on ship (for off-ship producer tracking)
         this.isSleeping = false;  // Flag to indicate if player is sleeping
         this.sleepEndTime = null; // Time when sleep will end (in total minutes)
     }

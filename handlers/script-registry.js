@@ -1,6 +1,17 @@
 // Script registry for interactable objects
 // Maps script names to their handler functions
 
+// Helper function to find item definition across all data sources
+function findItemDefinition(itemId) {
+    let def = INTERACTABLE_DATA.find(i => i.id === itemId);
+    if (!def) def = EQUIPMENT_DATA.find(i => i.id === itemId);
+    if (!def) def = TOOL_DATA[itemId];
+    if (!def) def = MATERIAL_DATA[itemId];
+    if (!def) def = FOOD_DATA.find(i => i.id === itemId);
+    if (!def) def = ITEM_DATA.find(i => i.id === itemId);
+    return def;
+}
+
 const SCRIPT_REGISTRY = {
     'showMessage': (game, self, args) => {
         if (!self.hasComponent('MessageComponent')) {
@@ -197,47 +208,92 @@ const SCRIPT_REGISTRY = {
             game.world.addComponent(player.id, new MenuComponent('How long do you want to sleep?', menuOptions, self));
         }
     },
-    'openHydroponicsMenu': (game, self, args) => {
+    'openProducerMenu': (game, self, args) => {
         const player = game.world.query(['PlayerComponent'])[0];
         if (!player) return;
 
-        const hydroponics = self.getComponent('HydroponicsComponent');
-        if (!hydroponics) return;
+        const producer = self.getComponent('ProducerComponent');
+        if (!producer) return;
 
-        if (hydroponics.state === 'empty') {
+        const producerType = PRODUCER_TYPES[producer.producerType];
+        if (!producerType) return;
+
+        if (producer.state === 'empty') {
             const inventory = player.getComponent('InventoryComponent');
-            const seeds = [];
-            for (const [key, itemData] of inventory.items) {
+            const validInputs = [];
+
+            // Find all recipes for this producer type
+            const recipes = PRODUCER_RECIPES[producer.producerType];
+            if (!recipes) return;
+
+            // Check player inventory for valid input items
+            for (const [itemName, itemData] of inventory.items) {
                 const itemEntity = game.world.getEntity(itemData.entityId);
-                const itemDef = INTERACTABLE_DATA.find(def => def.name === itemEntity.getComponent('NameComponent').name);
-                if (itemDef && itemDef.itemType === 'seed') {
-                    seeds.push(itemDef);
+                const nameComp = itemEntity.getComponent('NameComponent');
+
+                // Check all data sources for this item
+                let itemDef = INTERACTABLE_DATA.find(def => def.name === nameComp.name);
+                if (!itemDef) itemDef = FOOD_DATA.find(def => def.name === nameComp.name);
+                if (!itemDef) itemDef = ITEM_DATA.find(def => def.name === nameComp.name);
+
+                if (itemDef) {
+                    // Check if this item is a valid input for any recipe
+                    const matchingRecipe = recipes.find(recipe => recipe.inputItemId === itemDef.id);
+                    if (matchingRecipe) {
+                        validInputs.push({ itemDef, recipe: matchingRecipe });
+                    }
                 }
             }
 
-            if (seeds.length === 0) {
-                game.world.addComponent(player.id, new MessageComponent('You have no seeds to plant.', 'yellow'));
+            if (validInputs.length === 0) {
+                game.world.addComponent(player.id, new MessageComponent(producerType.noInputMessage, 'yellow'));
                 return;
             }
 
-            const menuOptions = seeds.map(seed => ({
-                label: `Plant ${seed.name}`,
-                action: 'plantSeed',
-                actionArgs: { seedId: seed.id, bayId: self.id }
+            const menuOptions = validInputs.map(input => ({
+                label: `${producerType.startActionLabel} ${input.itemDef.name}`,
+                action: 'startProduction',
+                actionArgs: { recipeId: input.recipe.id, producerId: self.id }
             }));
             menuOptions.push({ label: 'Cancel', action: 'close_menu' });
 
-            game.world.addComponent(player.id, new MenuComponent('Select a seed to plant', menuOptions, self));
-        } else if (hydroponics.state === 'growing') {
-            const days = Math.floor(hydroponics.growthTimer / (24 * 60));
-            const hours = Math.floor((hydroponics.growthTimer % (24 * 60)) / 60);
-            game.world.addComponent(player.id, new MessageComponent(`Growing ${hydroponics.seedId}. Time remaining: ${days}d ${hours}h`, 'cyan'));
-        } else if (hydroponics.state === 'grown') {
+            game.world.addComponent(player.id, new MenuComponent(producerType.emptyMessage, menuOptions, self));
+        } else if (producer.state === 'processing') {
+            const timeComponent = player.getComponent('TimeComponent');
+            const currentTotalMinutes = timeComponent.totalMinutes;
+
+            // Check if production is actually complete (deadline-based system)
+            if (currentTotalMinutes >= producer.endTotalMinutes) {
+                // Automatically transition to ready state
+                producer.state = 'ready';
+                const menuOptions = [
+                    { label: producerType.collectActionLabel, action: 'collectOutput', actionArgs: { producerId: self.id } },
+                    { label: 'Cancel', action: 'close_menu' }
+                ];
+                game.world.addComponent(player.id, new MenuComponent(producerType.readyMessage, menuOptions, self));
+            } else {
+                // Calculate remaining time
+                const remainingMinutes = Math.max(0, producer.endTotalMinutes - currentTotalMinutes);
+                const remainingHours = Math.ceil(remainingMinutes / 60); // Round up
+
+                // Look up the input item name for display
+                const inputItemDef = findItemDefinition(producer.inputItemId);
+                const itemDisplayName = inputItemDef ? inputItemDef.name : producer.inputItemId;
+
+                game.world.addComponent(player.id, new MessageComponent(`${producerType.processingMessagePrefix} ${itemDisplayName}. Roughly ${remainingHours} hour${remainingHours !== 1 ? 's' : ''} left.`, 'cyan'));
+            }
+        } else if (producer.state === 'ready') {
             const menuOptions = [
-                { label: 'Harvest', action: 'harvest', actionArgs: { bayId: self.id } },
+                { label: producerType.collectActionLabel, action: 'collectOutput', actionArgs: { producerId: self.id } },
                 { label: 'Cancel', action: 'close_menu' }
             ];
-            game.world.addComponent(player.id, new MenuComponent('The plant is ready to harvest.', menuOptions, self));
+            game.world.addComponent(player.id, new MenuComponent(producerType.readyMessage, menuOptions, self));
+        } else if (producer.state === 'failed') {
+            const menuOptions = [
+                { label: 'Clear Dead Plants', action: 'clearFailedProducer', actionArgs: { producerId: self.id } },
+                { label: 'Cancel', action: 'close_menu' }
+            ];
+            game.world.addComponent(player.id, new MenuComponent('The plants have died from lack of water.', menuOptions, self));
         }
     },
     'openExpeditionMenu': (game, self, args) => {
@@ -263,5 +319,64 @@ const SCRIPT_REGISTRY = {
         menuOptions.push({ label: 'Cancel', action: 'close_menu' });
 
         game.world.addComponent(player.id, new MenuComponent('Select Expedition Location', menuOptions, self));
+    },
+    'refillWaterTank': (game, self, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const inventory = player.getComponent('InventoryComponent');
+        const shipEntity = game.world.query(['ShipComponent'])[0];
+
+        if (!shipEntity) {
+            game.world.addComponent(player.id, new MessageComponent('Water tank only works on the ship!', 'yellow'));
+            return;
+        }
+
+        const ship = shipEntity.getComponent('ShipComponent');
+
+        // Check if player has water canister
+        const waterCanister = inventory.items.get('Sealed Water Canister');
+
+        if (!waterCanister || waterCanister.quantity <= 0) {
+            game.world.addComponent(player.id, new MessageComponent('You need a Sealed Water Canister to refill the tank.', 'yellow'));
+            return;
+        }
+
+        // Remove one water canister from inventory
+        waterCanister.quantity--;
+        if (waterCanister.quantity <= 0) {
+            inventory.items.delete('Sealed Water Canister');
+        }
+
+        // Add 2L to ship water
+        const waterAdded = ship.addWater(2.0);
+
+        if (waterAdded < 2.0) {
+            const wastedWater = 2.0 - waterAdded;
+            game.world.addComponent(player.id, new MessageComponent(`Added ${waterAdded.toFixed(1)}L to the ship tank. ${wastedWater.toFixed(1)}L wasted (tank full).`, 'green'));
+        } else {
+            game.world.addComponent(player.id, new MessageComponent('Added 2L to the ship water tank.', 'green'));
+        }
+    },
+    'returnToShip': (game, self, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        // Check if in combat
+        const inCombat = player.hasComponent('CombatStateComponent');
+        if (inCombat) {
+            game.world.addComponent(player.id, new MessageComponent('You cannot return to ship during combat!', 'red'));
+            return;
+        }
+
+        // Show confirmation menu
+        game.world.addComponent(player.id, new MenuComponent(
+            'Return to Ship?',
+            [
+                { label: 'Yes - End Expedition', action: 'confirm_return_to_ship' },
+                { label: 'Cancel', action: 'close_menu' }
+            ],
+            self
+        ));
     }
 };

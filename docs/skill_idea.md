@@ -21,10 +21,14 @@ There are **4 non-combat skills** that integrate with survival and crafting syst
 - **Leveling Trigger:** Has a chance to increase once per day, checked only on days where the player has cooked at least one meal.
 
 ### 3. Farming
-- **Effect:** Increases the growth speed of plants in the hydroponics bay and reduces the chance of plant failure.
+- **Effect:** Affects all producer-type interactables linked to the farming skill (currently: Hydroponics Bay)
+  - **Daily Time Reduction:** At 0000 (midnight) each day, reduces the production end time by `(baseTime × 2% × skillLevel)`. This represents active tending of crops.
+  - **Off-Ship Behavior:** If player returns to ship after being away across midnight(s), applies ONE reduction (not per day missed), as you weren't tending while gone.
+  - **Secondary Output Bonus:** +2% chance per skill level to produce secondary outputs (e.g., seed return chance)
 - **Maximum Natural Level:** 3
-- **Leveling Trigger:** Has a chance to increase each time you harvest from a hydroponics tray. The check can occur a maximum of three times per day, but the skill can only level up once per day.
+- **Leveling Trigger:** Has a chance to increase each time you harvest from a producer. The check can occur a maximum of three times per day, but the skill can only level up once per day.
 - **Advanced Levels:** Further ranks must be learned from specific tools or interactables.
+- **Example at Level 5:** Lettuce (2.5 days = 3600 min base) gets 360 minutes (6 hours) removed each midnight (10% per day), has +10% seed return chance. After 2 midnights, finishes 12 hours early!
 
 ### 4. Repair
 - **Effect:** Allows the player to fix broken interactables. Each broken item will have a minimum Repair skill requirement.

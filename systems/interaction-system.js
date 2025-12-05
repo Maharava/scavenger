@@ -1,5 +1,5 @@
 // InteractionSystem - Handles player interaction with interactable objects
-// Prioritizes checking the direction the actor is facing first
+// Now supports multi-interactable selection when multiple items are adjacent
 
 class InteractionSystem extends System {
     update(world) {
@@ -13,30 +13,31 @@ class InteractionSystem extends System {
             const actorPos = actor.getComponent('PositionComponent');
             const facing = actor.getComponent('FacingComponent');
 
-            // First, check directly in front of the actor (if they have a facing direction)
+            // Collect ALL adjacent interactables
+            const adjacentInteractables = [];
+
+            // First priority: check facing direction
             if (facing) {
                 const offset = facing.getOffset();
                 const facingX = actorPos.x + offset.dx;
                 const facingY = actorPos.y + offset.dy;
 
-                // Look for interactable in facing direction
                 for (const interactable of interactables) {
                     const interactablePos = interactable.getComponent('PositionComponent');
                     if (interactablePos.x === facingX && interactablePos.y === facingY) {
-                        const interactableComp = interactable.getComponent('InteractableComponent');
-
-                        const script = SCRIPT_REGISTRY[interactableComp.script];
-                        if (script) {
-                            script(world.game, interactable, interactableComp.scriptArgs);
-                        }
-
-                        actor.removeComponent('ActionComponent');
-                        return;
+                        const nameComp = interactable.getComponent('NameComponent');
+                        const name = nameComp ? nameComp.name : 'Unknown';
+                        adjacentInteractables.push({
+                            entity: interactable,
+                            name: name,
+                            position: { x: interactablePos.x, y: interactablePos.y },
+                            isFacing: true
+                        });
                     }
                 }
             }
 
-            // If nothing found in facing direction, search all adjacent tiles
+            // Then check all other adjacent tiles (not already in facing direction)
             for (let dx = -1; dx <= 1; dx++) {
                 for (let dy = -1; dy <= 1; dy++) {
                     if (dx === 0 && dy === 0) continue;
@@ -44,22 +45,47 @@ class InteractionSystem extends System {
                     const checkX = actorPos.x + dx;
                     const checkY = actorPos.y + dy;
 
+                    // Skip if this is the facing direction (already checked)
+                    if (facing) {
+                        const offset = facing.getOffset();
+                        if (checkX === actorPos.x + offset.dx && checkY === actorPos.y + offset.dy) {
+                            continue;
+                        }
+                    }
+
                     for (const interactable of interactables) {
                         const interactablePos = interactable.getComponent('PositionComponent');
                         if (interactablePos.x === checkX && interactablePos.y === checkY) {
-                            const interactableComp = interactable.getComponent('InteractableComponent');
-
-                            const script = SCRIPT_REGISTRY[interactableComp.script];
-                            if (script) {
-                                script(world.game, interactable, interactableComp.scriptArgs);
-                            }
-
-                            actor.removeComponent('ActionComponent');
-                            return;
+                            const nameComp = interactable.getComponent('NameComponent');
+                            const name = nameComp ? nameComp.name : 'Unknown';
+                            adjacentInteractables.push({
+                                entity: interactable,
+                                name: name,
+                                position: { x: interactablePos.x, y: interactablePos.y },
+                                isFacing: false
+                            });
                         }
                     }
                 }
             }
+
+            // Handle based on number of interactables found
+            if (adjacentInteractables.length === 0) {
+                // Nothing to interact with
+                world.addComponent(actor.id, new MessageComponent('Nothing to interact with here.', 'gray'));
+            } else if (adjacentInteractables.length === 1) {
+                // Only one interactable - directly activate it
+                const target = adjacentInteractables[0].entity;
+                const interactableComp = target.getComponent('InteractableComponent');
+                const script = SCRIPT_REGISTRY[interactableComp.script];
+                if (script) {
+                    script(world.game, target, interactableComp.scriptArgs);
+                }
+            } else {
+                // Multiple interactables - show selection menu
+                world.addComponent(actor.id, new SelectionMenuComponent(adjacentInteractables));
+            }
+
             actor.removeComponent('ActionComponent');
         }
     }

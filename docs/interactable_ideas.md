@@ -4,10 +4,10 @@
 - **Crate / Cargo Container:** A container with a local inventory.
 - **Ship Crate / Ship Cargo:** An access point to the shared, ship-wide cargo hold.
 - **Drop Chute:** A one-way chute to send items directly to the ship's cargo hold during an expedition.
-- **Resource Recycler:** Breaks down unwanted equipment and modules into their base components.
+- **Resource Recycler:** A potential producer-type interactable that could break down equipment into base components over time. Not yet implemented, but the producer system supports this pattern.
 
 ## Survival & Recovery
-- **Hydroponics Bay:** Consumes water and `Organic Protein` to grow food over time.
+- **Hydroponics Bay:** A producer-type interactable that grows food from seeds over time. Uses the generic producer system, which supports skill bonuses (farming skill increases growth speed and seed return chance). Seeds take 2.5-10 game days to grow depending on type.
 - **Stove:** Allows for the crafting of meals from raw food items, providing better stat restoration.
 - **Shower:** Increases the player's `Comfort` and reduces `Stress`.
 - **Bed:** Restores the `Rest` stat. Higher quality beds can also improve `Comfort`.

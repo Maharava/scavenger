@@ -329,6 +329,21 @@ class CombatSystem extends System {
         // Advance to next participant
         this.activeCombatSession.advanceTurn();
 
+        // Every 4 turns, increment time by 1 minute (combat time progression)
+        // Each turn = 30 seconds in-game, so 4 turns = 2 minutes, but we simplify to 1 minute per 4 turns
+        if (this.activeCombatSession.totalTurns % 4 === 0) {
+            const timeComponent = player.getComponent('TimeComponent');
+            if (timeComponent) {
+                timeComponent.addMinutes(1);
+
+                // Check for day changes after time increment
+                const timeSystem = world.systems.find(s => s.constructor.name === 'TimeSystem');
+                if (timeSystem) {
+                    timeSystem.updateDayTracking(world, timeComponent);
+                }
+            }
+        }
+
         // Show whose turn it is
         const newActiveId = this.activeCombatSession.getActiveCombatant();
         const newActiveEntity = world.getEntity(newActiveId);
@@ -403,13 +418,98 @@ class CombatSystem extends System {
             // TODO: Spawn loot corpses
         } else if (result === 'defeat') {
             world.addComponent(player.id, new MessageComponent('You died! Returning to ship...', 'red'));
-            // TODO: Respawn player on ship, lose expedition loot
+            this.handlePlayerDeath(world, player);
         } else if (result === 'flee') {
             world.addComponent(player.id, new MessageComponent('Fled from combat!', 'yellow'));
         }
 
         // Clear combat session
         this.activeCombatSession = null;
+    }
+
+    handlePlayerDeath(world, player) {
+        // 1. Apply skill regression penalty
+        const skillsSystem = world.systems.find(s => s.constructor.name === 'SkillsSystem');
+        if (skillsSystem) {
+            skillsSystem.applyDeathPenalty(world, player);
+        }
+
+        // 2. Drop all equipped and held items
+        const equipped = player.getComponent('EquippedItemsComponent');
+        const inventory = player.getComponent('InventoryComponent');
+
+        if (equipped && inventory) {
+            // Drop hand item
+            if (equipped.hand) {
+                const handItem = world.getEntity(equipped.hand);
+                if (handItem) {
+                    const itemComp = handItem.getComponent('ItemComponent');
+                    const inventoryKey = getInventoryKey(handItem);
+                    inventory.items.delete(inventoryKey);
+                    world.destroyEntity(equipped.hand);
+                    world.addComponent(player.id, new MessageComponent(`Lost ${itemComp.name}`, 'red'));
+                }
+                equipped.hand = null;
+            }
+
+            // Drop body item
+            if (equipped.body) {
+                const bodyItem = world.getEntity(equipped.body);
+                if (bodyItem) {
+                    const itemComp = bodyItem.getComponent('ItemComponent');
+                    const inventoryKey = getInventoryKey(bodyItem);
+                    inventory.items.delete(inventoryKey);
+                    world.destroyEntity(equipped.body);
+                    world.addComponent(player.id, new MessageComponent(`Lost ${itemComp.name}`, 'red'));
+                }
+                equipped.body = null;
+            }
+
+            // Drop tool slots
+            if (equipped.tool1) {
+                const tool1 = world.getEntity(equipped.tool1);
+                if (tool1) {
+                    const itemComp = tool1.getComponent('ItemComponent');
+                    const inventoryKey = getInventoryKey(tool1);
+                    inventory.items.delete(inventoryKey);
+                    world.destroyEntity(equipped.tool1);
+                    world.addComponent(player.id, new MessageComponent(`Lost ${itemComp.name}`, 'red'));
+                }
+                equipped.tool1 = null;
+            }
+
+            if (equipped.tool2) {
+                const tool2 = world.getEntity(equipped.tool2);
+                if (tool2) {
+                    const itemComp = tool2.getComponent('ItemComponent');
+                    const inventoryKey = getInventoryKey(tool2);
+                    inventory.items.delete(inventoryKey);
+                    world.destroyEntity(equipped.tool2);
+                    world.addComponent(player.id, new MessageComponent(`Lost ${itemComp.name}`, 'red'));
+                }
+                equipped.tool2 = null;
+            }
+        }
+
+        // 3. Heal all body parts to 100%
+        const bodyParts = player.getComponent('BodyPartsComponent');
+        if (bodyParts) {
+            for (const [partName, efficiency] of bodyParts.parts) {
+                bodyParts.parts.set(partName, MAX_STAT_VALUE);
+            }
+        }
+
+        // 4. Restore some hunger and rest (not full, but enough to survive)
+        const stats = player.getComponent('CreatureStatsComponent');
+        if (stats) {
+            stats.hunger = 50; // Wake up hungry
+            stats.rest = 50;   // Wake up tired
+            stats.stress = 30; // Traumatic experience
+        }
+
+        // 5. Return to ship
+        buildWorld(world, 'SHIP');
+        world.addComponent(player.id, new MessageComponent('You wake up in the medical bay...', 'yellow'));
     }
 
     // Request player action (called by InputSystem or UI)

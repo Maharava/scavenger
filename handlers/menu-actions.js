@@ -1,6 +1,17 @@
 // Menu action handlers
 // All menu action callbacks in one place
 
+// Helper function to find item definition across all data sources
+function findItemDefinition(itemId) {
+    let def = INTERACTABLE_DATA.find(i => i.id === itemId);
+    if (!def) def = EQUIPMENT_DATA.find(i => i.id === itemId);
+    if (!def) def = TOOL_DATA[itemId];
+    if (!def) def = MATERIAL_DATA[itemId];
+    if (!def) def = FOOD_DATA.find(i => i.id === itemId);
+    if (!def) def = ITEM_DATA.find(i => i.id === itemId);
+    return def;
+}
+
 const MENU_ACTIONS = {
     'close_menu': (game) => {
         closeTopMenu(game.world);
@@ -210,19 +221,86 @@ const MENU_ACTIONS = {
         }
 
         const slot = equipment.slot;
+        const playerPos = player.getComponent('PositionComponent');
 
-        // Check inventory space
-        if (!inventory.canAddItem(game.world, itemEntity, 1)) {
-            game.world.addComponent(player.id, new MessageComponent('Not enough space!', 'red'));
-            closeTopMenu(game.world);
-            return;
+        // Check if unequipping this tool will cause inventory slot loss
+        const toolStats = itemEntity.getComponent('ToolStatsComponent');
+        let slotsLost = 0;
+        if (toolStats && toolStats.statBoosts && toolStats.statBoosts.inventorySlots) {
+            slotsLost = toolStats.statBoosts.inventorySlots;
         }
 
-        // Unequip item and add to inventory using correct key
+        // Unequip the item first (this affects getPlayerMaxSlots calculation)
         equipped[slot] = null;
-        const inventoryKey = getInventoryKey(itemEntity);
-        inventory.items.set(inventoryKey, { entityId: itemEntity.id, quantity: 1 });
-        game.world.addComponent(player.id, new MessageComponent(`Unequipped ${itemComponent.name}!`, 'green'));
+
+        // Calculate new effective max slots after unequipping
+        const newMaxSlots = getPlayerMaxSlots(game.world, player);
+        const currentSlotsUsed = inventory.getTotalSlotsUsed(game.world);
+
+        // Check if we need to drop items due to slot overflow
+        if (currentSlotsUsed > newMaxSlots) {
+            const slotsToDrop = currentSlotsUsed - newMaxSlots;
+            game.world.addComponent(player.id, new MessageComponent(
+                `Lost ${slotsLost} inventory slots! Dropping items...`, 'yellow'
+            ));
+
+            // Build list of droppable items (exclude the item being unequipped)
+            const droppableItems = [];
+            for (const [key, itemData] of inventory.items) {
+                const invItem = game.world.getEntity(itemData.entityId);
+                if (invItem && invItem.id !== itemEntity.id) {
+                    const invItemComp = invItem.getComponent('ItemComponent');
+                    if (invItemComp) {
+                        // Add each quantity as separate droppable entry
+                        for (let i = 0; i < itemData.quantity; i++) {
+                            droppableItems.push({ entity: invItem, key: key, itemData: itemData });
+                        }
+                    }
+                }
+            }
+
+            // Randomly drop items until we're under the new capacity
+            let slotsDropped = 0;
+            while (slotsDropped < slotsToDrop && droppableItems.length > 0) {
+                const randomIndex = Math.floor(Math.random() * droppableItems.length);
+                const toDrop = droppableItems.splice(randomIndex, 1)[0];
+
+                // Remove from inventory
+                const itemData = toDrop.itemData;
+                if (itemData.quantity > 1) {
+                    itemData.quantity--;
+                } else {
+                    inventory.items.delete(toDrop.key);
+                }
+
+                // Drop at player position
+                dropItemAt(game.world, toDrop.entity, playerPos.x, playerPos.y);
+
+                const droppedItemComp = toDrop.entity.getComponent('ItemComponent');
+                slotsDropped += droppedItemComp.slots;
+
+                game.world.addComponent(player.id, new MessageComponent(
+                    `Dropped ${droppedItemComp.name}`, 'orange'
+                ));
+            }
+        }
+
+        // Now check if we can add the unequipped item to inventory
+        if (!inventory.canAddItem(game.world, itemEntity, 1)) {
+            // No room - drop at feet
+            dropItemAt(game.world, itemEntity, playerPos.x, playerPos.y);
+            game.world.addComponent(player.id, new MessageComponent(
+                `Unequipped ${itemComponent.name} (dropped at feet)`, 'yellow'
+            ));
+        } else {
+            // Add to inventory
+            const inventoryKey = getInventoryKey(itemEntity);
+            inventory.items.set(inventoryKey, { entityId: itemEntity.id, quantity: 1 });
+            game.world.addComponent(player.id, new MessageComponent(
+                `Unequipped ${itemComponent.name}!`, 'green'
+            ));
+        }
+
         // Re-open the inventory menu to refresh its contents
         SCRIPT_REGISTRY['openInventoryMenu'](game, player);
     },
@@ -885,92 +963,170 @@ const MENU_ACTIONS = {
             game.world.addComponent(player.id, new MessageComponent('Error: Time system not found!', 'red'));
         }
     },
-    'plantSeed': (game, args) => {
+    'startProduction': (game, args) => {
         const player = game.world.query(['PlayerComponent'])[0];
         if (!player) return;
 
-        const { seedId, bayId } = args;
-        const bay = game.world.getEntity(bayId);
-        const hydroponics = bay.getComponent('HydroponicsComponent');
+        const { recipeId, producerId } = args;
+        const producerEntity = game.world.getEntity(producerId);
+        const producer = producerEntity.getComponent('ProducerComponent');
         const inventory = player.getComponent('InventoryComponent');
+        const timeComponent = player.getComponent('TimeComponent');
 
-        const seedData = HYDROPONICS_DATA[seedId];
-        if (!seedData) return;
+        // Find the recipe
+        const recipes = PRODUCER_RECIPES[producer.producerType];
+        const recipe = recipes.find(r => r.id === recipeId);
+        if (!recipe) return;
 
-        hydroponics.state = 'growing';
-        hydroponics.seedId = seedId;
-        hydroponics.growthTimer = seedData.time;
-        hydroponics.yield = seedData.yield;
-        hydroponics.seedChance = seedData.seedChance;
+        const producerType = PRODUCER_TYPES[producer.producerType];
+        if (!producerType) return;
 
-        const seedDef = INTERACTABLE_DATA.find(def => def.id === seedId);
-        const inventoryItem = inventory.items.get(seedDef.name);
+        // Find input item definition
+        const inputItemDef = findItemDefinition(recipe.inputItemId);
+        if (!inputItemDef) return;
+
+        // Remove input item from inventory
+        const inventoryItem = inventory.items.get(inputItemDef.name);
         if (inventoryItem) {
             inventoryItem.quantity--;
             if (inventoryItem.quantity <= 0) {
-                inventory.items.delete(seedDef.name);
+                inventory.items.delete(inputItemDef.name);
             }
         }
 
+        // Start production (deadline-based system)
+        producer.state = 'processing';
+        producer.recipeId = recipeId;
+        producer.inputItemId = recipe.inputItemId;
+        // Calculate end time using base recipe time (no skill applied yet)
+        producer.endTotalMinutes = timeComponent.totalMinutes + recipe.processingTime;
+        producer.baseProductionTime = recipe.processingTime;
+        producer.lastReductionDay = timeComponent.day; // Track current day
+
         closeTopMenu(game.world);
-        game.world.addComponent(player.id, new MessageComponent(`Planted ${seedDef.name}.`, 'green'));
+        game.world.addComponent(player.id, new MessageComponent(`${producerType.startSuccessPrefix} ${inputItemDef.name}.`, 'green'));
     },
-    'harvest': (game, args) => {
+    'collectOutput': (game, args) => {
         const player = game.world.query(['PlayerComponent'])[0];
         if (!player) return;
-        
-        const { bayId } = args;
-        const bay = game.world.getEntity(bayId);
-        const hydroponics = bay.getComponent('HydroponicsComponent');
+
+        const { producerId } = args;
+        const producerEntity = game.world.getEntity(producerId);
+        const producer = producerEntity.getComponent('ProducerComponent');
         const inventory = player.getComponent('InventoryComponent');
+        const skills = player.getComponent('SkillsComponent');
 
-        const seedData = HYDROPONICS_DATA[hydroponics.seedId];
-        if (!seedData) return;
+        // Find the recipe
+        const recipes = PRODUCER_RECIPES[producer.producerType];
+        const recipe = recipes.find(r => r.id === producer.recipeId);
+        if (!recipe) return;
 
-        const produceDef = INTERACTABLE_DATA.find(def => def.id === seedData.growsInto);
-        const yieldAmount = Math.floor(Math.random() * (hydroponics.yield[1] - hydroponics.yield[0] + 1)) + hydroponics.yield[0];
+        const producerType = PRODUCER_TYPES[producer.producerType];
+        if (!producerType) return;
 
-        if (produceDef) {
-            const produceEntity = game.world.createEntity();
-            game.world.addComponent(produceEntity, new ItemComponent(produceDef.name, '', produceDef.weight || 0, produceDef.slots || 0));
-            game.world.addComponent(produceEntity, new ConsumableComponent(produceDef.scriptArgs.effect, produceDef.scriptArgs.value));
-            game.world.addComponent(produceEntity, new StackableComponent(1, 99));
-            game.world.addComponent(produceEntity, new NameComponent(produceDef.name));
+        // Get skill level for bonuses
+        const skillLevel = (producerType.linkedSkill && skills) ? (skills[producerType.linkedSkill] || 0) : 0;
+        const secondaryChanceBonus = producerType.skillBonuses?.secondaryOutputBonus || 0;
 
-            if (inventory.items.has(produceDef.name)) {
-                const existingStack = inventory.items.get(produceDef.name);
-                existingStack.quantity += yieldAmount;
-            } else {
-                inventory.items.set(produceDef.name, { entityId: produceEntity, quantity: yieldAmount });
+        // Process each output from the recipe
+        let primaryOutputMessage = '';
+        let secondaryOutputFound = false;
+
+        for (let i = 0; i < recipe.outputs.length; i++) {
+            const output = recipe.outputs[i];
+
+            // Apply skill bonus to secondary/tertiary outputs (index > 0)
+            let outputChance = output.chance;
+            if (i > 0) {
+                outputChance += (skillLevel * secondaryChanceBonus);
             }
-            game.world.addComponent(player.id, new MessageComponent(`Harvested ${yieldAmount} ${produceDef.name}.`, 'green'));
-        }
 
-        if (Math.random() < hydroponics.seedChance) {
-            const seedDef = INTERACTABLE_DATA.find(def => def.id === hydroponics.seedId);
-            if (seedDef) {
-                const seedEntity = game.world.createEntity();
-                game.world.addComponent(seedEntity, new ItemComponent(seedDef.name, '', seedDef.weight || 0, seedDef.slots || 0));
-                game.world.addComponent(seedEntity, new NameComponent(seedDef.name));
-                game.world.addComponent(seedEntity, new StackableComponent(1, 99));
+            // Check if this output is produced
+            if (Math.random() < outputChance) {
+                const quantity = Math.floor(Math.random() * (output.quantityMax - output.quantityMin + 1)) + output.quantityMin;
 
-                if (inventory.items.has(seedDef.name)) {
-                    const existingStack = inventory.items.get(seedDef.name);
-                    existingStack.quantity++;
-                } else {
-                    inventory.items.set(seedDef.name, { entityId: seedEntity, quantity: 1 });
+                if (quantity > 0) {
+                    const outputItemDef = findItemDefinition(output.itemId);
+                    if (outputItemDef) {
+                        // Create the output item entity
+                        const outputEntity = game.world.createEntity();
+                        game.world.addComponent(outputEntity, new ItemComponent(outputItemDef.name, '', outputItemDef.weight || 0, outputItemDef.slots || 0));
+                        game.world.addComponent(outputEntity, new NameComponent(outputItemDef.name));
+                        game.world.addComponent(outputEntity, new StackableComponent(1, 99));
+
+                        // Add consumable component if it exists
+                        if (outputItemDef.scriptArgs && outputItemDef.scriptArgs.effect) {
+                            game.world.addComponent(outputEntity, new ConsumableComponent(outputItemDef.scriptArgs.effect, outputItemDef.scriptArgs.value));
+                        }
+
+                        // Add to inventory
+                        if (inventory.items.has(outputItemDef.name)) {
+                            const existingStack = inventory.items.get(outputItemDef.name);
+                            existingStack.quantity += quantity;
+                        } else {
+                            inventory.items.set(outputItemDef.name, { entityId: outputEntity, quantity: quantity });
+                        }
+
+                        // Track message for primary output
+                        if (i === 0) {
+                            primaryOutputMessage = `${producerType.collectSuccessPrefix} ${quantity} ${outputItemDef.name}.`;
+                        } else {
+                            secondaryOutputFound = true;
+                        }
+                    }
                 }
-                game.world.addComponent(player.id, new MessageComponent(`You found a seed!`, 'green'));
             }
         }
 
-        hydroponics.state = 'empty';
-        hydroponics.seedId = null;
-        hydroponics.growthTimer = 0;
-        hydroponics.yield = [0,0];
-        hydroponics.seedChance = 0;
+        // Display messages
+        if (primaryOutputMessage) {
+            game.world.addComponent(player.id, new MessageComponent(primaryOutputMessage, 'green'));
+        }
+        if (secondaryOutputFound) {
+            game.world.addComponent(player.id, new MessageComponent(producerType.foundSecondaryMessage, 'green'));
+        }
+
+        // Reset producer state (deadline-based system)
+        producer.state = 'empty';
+        producer.recipeId = null;
+        producer.inputItemId = null;
+        producer.endTotalMinutes = 0;
+        producer.baseProductionTime = 0;
+        producer.lastReductionDay = 0;
+
+        // Trigger skill check if linked skill exists
+        if (producerType.linkedSkill) {
+            const skillsSystem = game.world.systems.find(s => s.constructor.name === 'SkillsSystem');
+            if (skillsSystem) {
+                const checkMethodName = `check${producerType.linkedSkill.charAt(0).toUpperCase() + producerType.linkedSkill.slice(1)}LevelUp`;
+                if (skillsSystem[checkMethodName]) {
+                    skillsSystem[checkMethodName](game.world, player);
+                }
+            }
+        }
 
         closeTopMenu(game.world);
+    },
+    'clearFailedProducer': (game, args) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        const { producerId } = args;
+        const producerEntity = game.world.getEntity(producerId);
+        const producer = producerEntity.getComponent('ProducerComponent');
+
+        if (!producer || producer.state !== 'failed') return;
+
+        // Reset producer to empty state
+        producer.state = 'empty';
+        producer.recipeId = null;
+        producer.inputItemId = null;
+        producer.endTotalMinutes = 0;
+        producer.baseProductionTime = 0;
+        producer.lastReductionDay = 0;
+
+        closeTopMenu(game.world);
+        game.world.addComponent(player.id, new MessageComponent('Cleared the dead plants.', 'yellow'));
     },
     'start_expedition': (game, args) => {
         const player = game.world.query(['PlayerComponent'])[0];
@@ -984,6 +1140,9 @@ const MENU_ACTIONS = {
             closeTopMenu(game.world);
             return;
         }
+
+        // Save ship state before leaving (for return journey)
+        saveShipState(game.world, player);
 
         // Generate a new map using the procgen system
         const seed = Date.now();
@@ -1001,5 +1160,69 @@ const MENU_ACTIONS = {
         // Load the generated map
         buildWorld(game.world, generatedMap.id, generatedMap);
         game.world.addComponent(player.id, new MessageComponent(`Starting expedition to ${generatedMap.name}...`, 'cyan'));
+    },
+    'confirm_return_to_ship': (game) => {
+        const player = game.world.query(['PlayerComponent'])[0];
+        if (!player) return;
+
+        // Get current time before reloading ship
+        const timeComponent = player.getComponent('TimeComponent');
+        const totalMinutesAway = timeComponent ? timeComponent.totalMinutes : 0;
+
+        closeTopMenu(game.world);
+
+        // Reload ship map
+        buildWorld(game.world, 'SHIP');
+
+        // After ship loads, calculate off-ship water consumption
+        const newPlayer = game.world.query(['PlayerComponent'])[0];
+        if (newPlayer) {
+            const newTimeComponent = newPlayer.getComponent('TimeComponent');
+            const shipEntity = game.world.query(['ShipComponent'])[0];
+            const producers = game.world.query(['ProducerComponent']);
+
+            if (shipEntity && newTimeComponent) {
+                const ship = shipEntity.getComponent('ShipComponent');
+
+                // Calculate time away (in hours)
+                // Note: When ship loads, time is restored from save, so we need to compare
+                const timeAwayMinutes = totalMinutesAway - (newTimeComponent.totalMinutes || 0);
+                const hoursAway = Math.abs(timeAwayMinutes) / 60;
+
+                // Count active hydroponics bays
+                let activeHydroponicsBays = 0;
+                const processingBays = [];
+
+                for (const producer of producers) {
+                    const producerComp = producer.getComponent('ProducerComponent');
+                    if (producerComp.producerType === 'HYDROPONICS' && producerComp.state === 'processing') {
+                        activeHydroponicsBays++;
+                        processingBays.push(producer);
+                    }
+                }
+
+                if (activeHydroponicsBays > 0 && hoursAway > 0) {
+                    // Calculate water consumed
+                    const waterConsumed = HYDROPONICS_WATER_PER_HOUR * activeHydroponicsBays * hoursAway;
+                    const waterBefore = ship.water;
+
+                    ship.consumeWater(waterConsumed);
+
+                    // Check if water ran out
+                    if (ship.water <= 0) {
+                        // Mark all processing hydroponics as failed
+                        for (const producer of processingBays) {
+                            const producerComp = producer.getComponent('ProducerComponent');
+                            producerComp.state = 'failed';
+                        }
+                        game.world.addComponent(newPlayer.id, new MessageComponent('WARNING: Ship water depleted! Hydroponics systems failed!', 'red'));
+                    } else if (waterConsumed > 0) {
+                        game.world.addComponent(newPlayer.id, new MessageComponent(`Hydroponics consumed ${waterConsumed.toFixed(1)}L water while you were away.`, 'cyan'));
+                    }
+                }
+            }
+
+            game.world.addComponent(newPlayer.id, new MessageComponent('Returned to ship successfully.', 'green'));
+        }
     }
 };

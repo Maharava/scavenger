@@ -176,10 +176,160 @@ class DamageSystem extends System {
     }
 
     handleDeath(world, entity) {
-        // Mark entity as dead
-        // TODO: Spawn corpse with loot
-        // TODO: Remove entity from world or mark as dead
+        // Check if this is the player
+        const isPlayer = entity.hasComponent('PlayerComponent');
 
-        // For now, just log it - combat system will detect dead enemies in checkCombatEnd
+        if (isPlayer) {
+            // Handle player death - return to ship with consequences
+            this.handlePlayerDeath(world, entity);
+        } else {
+            // Handle enemy death
+            // TODO: Spawn corpse with loot
+            // For now, just mark as dead - combat system will detect in checkCombatEnd
+        }
+    }
+
+    handlePlayerDeath(world, entity) {
+        // Show death message
+        world.addComponent(entity.id, new MessageComponent(
+            '═══════════════════════════════\n' +
+            '     YOU HAVE DIED\n' +
+            '═══════════════════════════════\n' +
+            'You awaken on your ship...\n' +
+            'All expedition items lost.\n' +
+            'Skills may have regressed.',
+            'red'
+        ));
+
+        // Apply skill regression (2 random skills)
+        const skillsSystem = world.systems.find(s => s.constructor.name === 'SkillsSystem');
+        if (skillsSystem) {
+            skillsSystem.applyDeathPenalty(world, entity);
+        }
+
+        // Clear expedition inventory (items collected during expedition)
+        // We distinguish between "ship inventory" (what you had when leaving)
+        // and "expedition inventory" (what you collected)
+        // For simplicity, we'll clear ALL inventory since save/load handles ship inventory
+        const inventory = entity.getComponent('InventoryComponent');
+        if (inventory) {
+            inventory.items.clear();
+            inventory.currentWeight = 0;
+        }
+
+        // Restore player health to prevent immediate re-death
+        const bodyParts = entity.getComponent('BodyPartsComponent');
+        if (bodyParts) {
+            for (const [partName, efficiency] of bodyParts.parts) {
+                bodyParts.parts.set(partName, 50); // Restore to 50% each
+            }
+        }
+
+        // Restore stats to survivable levels
+        const stats = entity.getComponent('CreatureStatsComponent');
+        if (stats) {
+            stats.hunger = 30; // Low but not critical
+            stats.rest = 40;
+            stats.stress = 80; // High stress from near-death experience
+            stats.comfort = 30;
+        }
+
+        // Exit combat if in combat
+        if (entity.hasComponent('CombatStateComponent')) {
+            world.removeComponent(entity.id, 'CombatStateComponent');
+            world.removeComponent(entity.id, 'CombatantComponent');
+
+            // Clean up combat session
+            const combatSystem = world.systems.find(s => s.constructor.name === 'CombatSystem');
+            if (combatSystem && combatSystem.activeCombatSession) {
+                combatSystem.endCombat(world);
+            }
+        }
+
+        // Return to ship after short delay
+        setTimeout(() => {
+            this.returnToShipAfterDeath(world, entity);
+        }, 3000); // 3 second delay to read death message
+    }
+
+    returnToShipAfterDeath(world, entity) {
+        // Destroy current world and rebuild ship map
+        const game = world.game;
+        if (!game) {
+            console.error('Cannot return to ship: game reference not found');
+            return;
+        }
+
+        // Save the player state before rebuilding
+        const timeComp = entity.getComponent('TimeComponent');
+        const savedTime = timeComp ? {
+            day: timeComp.day,
+            hours: timeComp.hours,
+            minutes: timeComp.minutes,
+            totalMinutes: timeComp.totalMinutes
+        } : null;
+
+        // Clear all entities except player components we want to keep
+        const savedComponents = {
+            skills: entity.getComponent('SkillsComponent'),
+            stats: entity.getComponent('CreatureStatsComponent'),
+            bodyParts: entity.getComponent('BodyPartsComponent'),
+            inventory: entity.getComponent('InventoryComponent'),
+            equipped: entity.getComponent('EquippedItemsComponent'),
+            time: entity.getComponent('TimeComponent')
+        };
+
+        // Rebuild the ship map
+        buildWorld(world, 'SHIP');
+
+        // Find the new player entity
+        const newPlayer = world.query(['PlayerComponent'])[0];
+        if (newPlayer && savedComponents) {
+            // Restore components
+            if (savedComponents.skills) {
+                const skills = newPlayer.getComponent('SkillsComponent');
+                if (skills) {
+                    skills.medical = savedComponents.skills.medical;
+                    skills.cooking = savedComponents.skills.cooking;
+                    skills.farming = savedComponents.skills.farming;
+                    skills.repair = savedComponents.skills.repair;
+                }
+            }
+
+            if (savedComponents.stats) {
+                const stats = newPlayer.getComponent('CreatureStatsComponent');
+                if (stats) {
+                    stats.hunger = savedComponents.stats.hunger;
+                    stats.rest = savedComponents.stats.rest;
+                    stats.stress = savedComponents.stats.stress;
+                    stats.comfort = savedComponents.stats.comfort;
+                }
+            }
+
+            if (savedComponents.bodyParts) {
+                const bodyParts = newPlayer.getComponent('BodyPartsComponent');
+                if (bodyParts) {
+                    for (const [partName, efficiency] of savedComponents.bodyParts.parts) {
+                        bodyParts.parts.set(partName, efficiency);
+                    }
+                }
+            }
+
+            if (savedTime) {
+                const timeComp = newPlayer.getComponent('TimeComponent');
+                if (timeComp) {
+                    timeComp.day = savedTime.day;
+                    timeComp.hours = savedTime.hours;
+                    timeComp.minutes = savedTime.minutes;
+                    timeComp.totalMinutes = savedTime.totalMinutes;
+                }
+            }
+
+            // Show return message
+            world.addComponent(newPlayer.id, new MessageComponent(
+                'You have returned to your ship.',
+                'yellow'
+            ));
+        }
     }
 }

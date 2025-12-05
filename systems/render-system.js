@@ -40,17 +40,28 @@ class RenderSystem extends System {
         if (player) {
             const playerPos = player.getComponent('PositionComponent');
             if (playerPos) {
-                // Center camera on player
-                let camX = Math.floor(playerPos.x - width / 2);
-                let camY = Math.floor(playerPos.y - height / 2);
-
                 // Get map dimensions from layout
                 const mapHeight = world.game.mapInfo.layout ? world.game.mapInfo.layout.length : height;
                 const mapWidth = world.game.mapInfo.layout ? world.game.mapInfo.layout[0].length : width;
 
-                // Clamp camera to map bounds
-                camX = Math.max(0, Math.min(camX, mapWidth - width));
-                camY = Math.max(0, Math.min(camY, mapHeight - height));
+                let camX, camY;
+
+                // If map is smaller than viewport, center the map in the viewport
+                if (mapWidth < width) {
+                    camX = Math.floor((mapWidth - width) / 2);
+                } else {
+                    // Normal camera centering - follow player
+                    camX = Math.floor(playerPos.x - width / 2);
+                    camX = Math.max(0, Math.min(camX, mapWidth - width));
+                }
+
+                if (mapHeight < height) {
+                    camY = Math.floor((mapHeight - height) / 2);
+                } else {
+                    // Normal camera centering - follow player
+                    camY = Math.floor(playerPos.y - height / 2);
+                    camY = Math.max(0, Math.min(camY, mapHeight - height));
+                }
 
                 world.game.cameraX = camX;
                 world.game.cameraY = camY;
@@ -147,12 +158,18 @@ class RenderSystem extends System {
         // --- UI Rendering ---
         overlay.innerHTML = ''; // Clear old item names from overlay
 
-        const menuEntity = world.query(['MenuComponent'])[0];
-        if (menuEntity) {
-            this.#renderMenu(container, menuEntity.getComponent('MenuComponent'));
+        // Check for selection menu first (simpler UI)
+        const selectionMenuEntity = world.query(['SelectionMenuComponent'])[0];
+        if (selectionMenuEntity) {
+            this.#renderSelectionMenu(container, selectionMenuEntity.getComponent('SelectionMenuComponent'));
         } else {
-            // Clear menu overlay when no menu is active
-            this.menuOverlay.innerHTML = '';
+            const menuEntity = world.query(['MenuComponent'])[0];
+            if (menuEntity) {
+                this.#renderMenu(container, menuEntity.getComponent('MenuComponent'));
+            } else {
+                // Clear menu overlay when no menu is active
+                this.menuOverlay.innerHTML = '';
+            }
         }
 
         // --- Item Name Overlay / Range Visualization Rendering ---
@@ -167,6 +184,75 @@ class RenderSystem extends System {
                 this.#renderItemNames(world, overlay);
             }
         }
+    }
+
+    #renderSelectionMenu(container, selectionMenu) {
+        // Clear the menu overlay before rendering
+        this.menuOverlay.innerHTML = '';
+
+        // Create selection menu container
+        const menuContainer = document.createElement('div');
+        menuContainer.className = 'selection-menu-container';
+        menuContainer.style.cssText = `
+            position: absolute;
+            left: 50%;
+            top: 30%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00ff00;
+            padding: 15px;
+            min-width: 300px;
+            font-family: monospace;
+            color: #00ff00;
+        `;
+
+        // Title
+        const titleElement = document.createElement('h3');
+        titleElement.textContent = 'Select Interactable:';
+        titleElement.style.cssText = `
+            margin: 0 0 10px 0;
+            color: #00ffff;
+            text-align: center;
+        `;
+        menuContainer.appendChild(titleElement);
+
+        // List of interactables
+        const list = document.createElement('ul');
+        list.style.cssText = `
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        `;
+
+        selectionMenu.interactables.forEach((interactable, index) => {
+            const listItem = document.createElement('li');
+            const isSelected = index === selectionMenu.selectedIndex;
+
+            listItem.textContent = `${isSelected ? '> ' : '  '}${interactable.name}`;
+            listItem.style.cssText = `
+                padding: 5px;
+                color: ${isSelected ? '#ffff00' : '#00ff00'};
+                background: ${isSelected ? 'rgba(255, 255, 0, 0.2)' : 'transparent'};
+                font-weight: ${isSelected ? 'bold' : 'normal'};
+            `;
+
+            list.appendChild(listItem);
+        });
+
+        menuContainer.appendChild(list);
+
+        // Instructions
+        const instructions = document.createElement('div');
+        instructions.textContent = 'W/S: Navigate | Space: Select | Esc: Cancel';
+        instructions.style.cssText = `
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #888;
+            text-align: center;
+        `;
+        menuContainer.appendChild(instructions);
+
+        this.menuOverlay.appendChild(menuContainer);
     }
 
     #renderMenu(container, menu) {
@@ -345,7 +431,11 @@ class RenderSystem extends System {
     }
 
     #renderWeaponRange(world, container) {
-        const TILE_SIZE = 20; // Should match style.css
+        // Calculate actual tile size from container dimensions
+        const containerRect = container.getBoundingClientRect();
+        const tileWidth = containerRect.width / world.game.width;
+        const tileHeight = containerRect.height / world.game.height;
+
         const player = world.query(['PlayerComponent'])[0];
         if (!player) return;
 
@@ -385,10 +475,10 @@ class RenderSystem extends System {
                         const rangeElement = document.createElement('div');
                         rangeElement.className = 'range-indicator';
                         rangeElement.style.position = 'absolute';
-                        rangeElement.style.left = `${screenX * TILE_SIZE}px`;
-                        rangeElement.style.top = `${screenY * TILE_SIZE}px`;
-                        rangeElement.style.width = `${TILE_SIZE}px`;
-                        rangeElement.style.height = `${TILE_SIZE}px`;
+                        rangeElement.style.left = `${screenX * tileWidth}px`;
+                        rangeElement.style.top = `${screenY * tileHeight}px`;
+                        rangeElement.style.width = `${tileWidth}px`;
+                        rangeElement.style.height = `${tileHeight}px`;
                         rangeElement.style.backgroundColor = 'rgba(255, 255, 0, 0.2)'; // Transparent yellow
                         rangeElement.style.border = '1px solid rgba(255, 255, 0, 0.4)';
                         rangeElement.style.pointerEvents = 'none'; // Don't block clicks
@@ -402,7 +492,12 @@ class RenderSystem extends System {
     }
 
     #renderItemNames(world, overlayContainer) {
-        const TILE_SIZE = 20; // Should match style.css
+        // Calculate actual tile size from container dimensions
+        const container = world.game.container;
+        const containerRect = container.getBoundingClientRect();
+        const tileWidth = containerRect.width / world.game.width;
+        const tileHeight = containerRect.height / world.game.height;
+
         const entities = world.query(['PositionComponent', 'NameComponent']);
         const inputSystem = world.systems.find(s => s instanceof InputSystem);
         const cameraX = world.game.cameraX;
@@ -462,8 +557,8 @@ class RenderSystem extends System {
             nameElement.className = 'item-name-tag';
             nameElement.textContent = name;
 
-            nameElement.style.left = `${screenX * TILE_SIZE + (TILE_SIZE / 2)}px`;
-            nameElement.style.top = `${(screenY * TILE_SIZE) - 16}px`;
+            nameElement.style.left = `${screenX * tileWidth + (tileWidth / 2)}px`;
+            nameElement.style.top = `${(screenY * tileHeight) - 16}px`;
             nameElement.style.zIndex = '10';
 
             overlayContainer.appendChild(nameElement);
@@ -481,8 +576,8 @@ class RenderSystem extends System {
             nameElement.className = 'item-name-tag item-name-tag-hovered';
             nameElement.textContent = name;
 
-            nameElement.style.left = `${screenX * TILE_SIZE + (TILE_SIZE / 2)}px`;
-            nameElement.style.top = `${(screenY * TILE_SIZE) - 16}px`;
+            nameElement.style.left = `${screenX * tileWidth + (tileWidth / 2)}px`;
+            nameElement.style.top = `${(screenY * tileHeight) - 16}px`;
             nameElement.style.zIndex = '100'; // Higher z-index for hovered items
 
             overlayContainer.appendChild(nameElement);

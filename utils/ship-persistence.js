@@ -95,9 +95,7 @@ function serializePlayerStats(world, player) {
         rest: stats ? stats.rest : 100,
         stress: stats ? stats.stress : 0,
         comfort: stats ? stats.comfort : BASE_COMFORT,
-        head: bodyParts ? bodyParts.head : 100,
-        torso: bodyParts ? bodyParts.torso : 100,
-        limbs: bodyParts ? bodyParts.limbs : 100
+        bodyParts: bodyParts ? Array.from(bodyParts.parts.entries()) : []
     };
 }
 
@@ -111,10 +109,11 @@ function deserializePlayerStats(world, player, data) {
     }
 
     const bodyParts = player.getComponent('BodyPartsComponent');
-    if (bodyParts) {
-        bodyParts.head = data.head;
-        bodyParts.torso = data.torso;
-        bodyParts.limbs = data.limbs;
+    if (bodyParts && data.bodyParts) {
+        bodyParts.parts.clear();
+        for (const [partName, efficiency] of data.bodyParts) {
+            bodyParts.parts.set(partName, efficiency);
+        }
     }
 }
 
@@ -130,13 +129,34 @@ function serializeInventory(world, player) {
         const itemComponent = itemEntity.getComponent('ItemComponent');
         if (!itemComponent) continue;
 
-        // Save item by its definition ID (for stackable) or full data (for modular equipment)
-        items.push({
+        const itemSaveData = {
             key: itemKey,
             name: itemComponent.name,
             quantity: itemData.quantity,
-            // TODO: For modular equipment, also save attached parts
-        });
+            weight: itemComponent.weight,
+            slots: itemComponent.slots,
+            description: itemComponent.description
+        };
+
+        // Save modular equipment data if present
+        const attachmentSlots = itemEntity.getComponent('AttachmentSlotsComponent');
+        if (attachmentSlots) {
+            itemSaveData.attachmentSlots = {};
+            for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
+                if (slotData.entity_id) {
+                    const attachedEntity = world.getEntity(slotData.entity_id);
+                    if (attachedEntity) {
+                        const attachedItem = attachedEntity.getComponent('ItemComponent');
+                        itemSaveData.attachmentSlots[slotName] = {
+                            name: attachedItem ? attachedItem.name : 'Unknown',
+                            accepted_type: slotData.accepted_type
+                        };
+                    }
+                }
+            }
+        }
+
+        items.push(itemSaveData);
     }
 
     return { items, capacity: inventory.capacity, maxWeight: inventory.maxWeight };
@@ -150,22 +170,46 @@ function deserializeInventory(world, player, data) {
     inventory.capacity = data.capacity;
     inventory.maxWeight = data.maxWeight;
 
-    // TODO: Recreate inventory items from saved data
-    // This is a simplified version - full implementation would recreate entities
-    console.log('Inventory deserialization not fully implemented yet');
+    // Recreate inventory items from saved data
+    // Note: This creates simple item entities without full recreation from INTERACTABLE_DATA
+    // For a full implementation, items should be looked up by name in INTERACTABLE_DATA
+    for (const itemData of data.items) {
+        const itemEntity = world.createEntity();
+        world.addComponent(itemEntity.id, new ItemComponent(
+            itemData.name,
+            itemData.description || '',
+            itemData.weight || 0,
+            itemData.slots || 1.0
+        ));
+
+        // Add to inventory (simplified - assumes stackable behavior based on item name)
+        inventory.items.set(itemData.key, {
+            entityId: itemEntity.id,
+            quantity: itemData.quantity
+        });
+    }
+
+    console.log(`Restored ${data.items.length} items to inventory`);
 }
 
 function serializeEquipment(world, player) {
     const equipped = player.getComponent('EquippedItemsComponent');
     if (!equipped) return { hand: null, body: null, tool1: null, tool2: null, backpack: null };
 
-    // TODO: Save equipped item IDs and their configurations
+    const saveEquippedSlot = (entityId) => {
+        if (!entityId) return null;
+        const entity = world.getEntity(entityId);
+        if (!entity) return null;
+        const item = entity.getComponent('ItemComponent');
+        return item ? { name: item.name, entityId: entityId } : null;
+    };
+
     return {
-        hand: equipped.hand,
-        body: equipped.body,
-        tool1: equipped.tool1,
-        tool2: equipped.tool2,
-        backpack: equipped.backpack
+        hand: saveEquippedSlot(equipped.hand),
+        body: saveEquippedSlot(equipped.body),
+        tool1: saveEquippedSlot(equipped.tool1),
+        tool2: saveEquippedSlot(equipped.tool2),
+        backpack: saveEquippedSlot(equipped.backpack)
     };
 }
 
@@ -173,8 +217,15 @@ function deserializeEquipment(world, player, data) {
     const equipped = player.getComponent('EquippedItemsComponent');
     if (!equipped) return;
 
-    // TODO: Recreate equipped items from saved IDs
-    console.log('Equipment deserialization not fully implemented yet');
+    // Note: This is a simplified restoration that just stores the entity IDs
+    // For full implementation, items should be recreated from INTERACTABLE_DATA or lookup by ID
+    equipped.hand = data.hand ? data.hand.entityId : null;
+    equipped.body = data.body ? data.body.entityId : null;
+    equipped.tool1 = data.tool1 ? data.tool1.entityId : null;
+    equipped.tool2 = data.tool2 ? data.tool2.entityId : null;
+    equipped.backpack = data.backpack ? data.backpack.entityId : null;
+
+    console.log('Equipment references restored (entities may need recreation)');
 }
 
 function serializeSkills(world, player) {
@@ -200,33 +251,39 @@ function deserializeSkills(world, player, data) {
 }
 
 function serializeShipResources(world) {
-    const shipEntities = world.query(['ShipResourcesComponent']);
-    if (shipEntities.length === 0) return { water: 1000, fuel: 100 };
+    const shipEntities = world.query(['ShipComponent']);
+    if (shipEntities.length === 0) return { water: 100, fuel: 100 };
 
-    const resources = shipEntities[0].getComponent('ShipResourcesComponent');
+    const ship = shipEntities[0].getComponent('ShipComponent');
     return {
-        water: resources.water,
-        fuel: resources.fuel
+        water: ship.water,
+        fuel: ship.fuel,
+        maxWater: ship.maxWater,
+        maxFuel: ship.maxFuel
     };
 }
 
 function deserializeShipResources(world, data) {
-    const shipEntities = world.query(['ShipResourcesComponent']);
+    const shipEntities = world.query(['ShipComponent']);
     if (shipEntities.length === 0) return;
 
-    const resources = shipEntities[0].getComponent('ShipResourcesComponent');
-    resources.water = data.water;
-    resources.fuel = data.fuel;
+    const ship = shipEntities[0].getComponent('ShipComponent');
+    ship.water = data.water;
+    ship.fuel = data.fuel;
+    if (data.maxWater) ship.maxWater = data.maxWater;
+    if (data.maxFuel) ship.maxFuel = data.maxFuel;
 }
 
 function serializeTime(world, player) {
     const timeComponent = player.getComponent('TimeComponent');
-    if (!timeComponent) return { day: 1, hour: 8, minute: 0 };
+    if (!timeComponent) return { day: 1, hours: 0, minutes: 0, totalMinutes: 0 };
 
     return {
         day: timeComponent.day,
-        hour: timeComponent.hour,
-        minute: timeComponent.minute
+        hours: timeComponent.hours,
+        minutes: timeComponent.minutes,
+        totalMinutes: timeComponent.totalMinutes,
+        lastDayOnShip: timeComponent.lastDayOnShip
     };
 }
 
@@ -235,6 +292,10 @@ function deserializeTime(world, player, data) {
     if (!timeComponent) return;
 
     timeComponent.day = data.day;
-    timeComponent.hour = data.hour;
-    timeComponent.minute = data.minute;
+    timeComponent.hours = data.hours;
+    timeComponent.minutes = data.minutes;
+    timeComponent.totalMinutes = data.totalMinutes;
+    if (data.lastDayOnShip !== undefined) {
+        timeComponent.lastDayOnShip = data.lastDayOnShip;
+    }
 }

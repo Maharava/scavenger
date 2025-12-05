@@ -12,6 +12,7 @@ class TimeSystem extends System {
         this.lastUpdateTime = Date.now();
         this.accumulatedRealSeconds = 0; // Tracks real seconds to convert to game minutes
         this.lastHourUpdate = 0; // Track last hour for hourly updates (healing, hunger)
+        this.lastDayUpdate = 1; // Track last day for midnight detection
     }
 
     update(world) {
@@ -21,6 +22,14 @@ class TimeSystem extends System {
         const timeComponent = player.getComponent('TimeComponent');
         const stats = player.getComponent('CreatureStatsComponent');
         const bodyParts = player.getComponent('BodyPartsComponent');
+
+        // Check if player is in combat - if so, pause time
+        const inCombat = player.hasComponent('CombatStateComponent');
+        if (inCombat) {
+            // Time is paused during combat - combat system handles time increments every 4 turns
+            this.lastUpdateTime = Date.now(); // Update timer to prevent time jump when combat ends
+            return;
+        }
 
         const now = Date.now();
         const deltaTimeSeconds = (now - this.lastUpdateTime) / 1000;
@@ -38,18 +47,33 @@ class TimeSystem extends System {
             timeComponent.addMinutes(gameMinutesToAdd);
             this.accumulatedRealSeconds -= gameMinutesToAdd * REAL_SECONDS_PER_GAME_MINUTE;
 
-            // Check if sleeping
-            if (timeComponent.isSleeping) {
-                // During sleep, skip normal mechanics (no stress accumulation)
-                // Check if sleep is complete
-                if (timeComponent.checkSleepComplete()) {
-                    // Wake up - trigger fade back in and show message
-                    this.wakeUpPlayer(world, player);
-                }
-            } else {
-                // Normal time progression - apply hunger and hourly updates
-                this.applyTimeBasedMechanics(world, player, timeComponent, stats, bodyParts);
+            // Check for day changes (midnight crossing)
+            this.updateDayTracking(world, timeComponent);
+
+            // Apply hunger and hourly updates (sleep is now instant, no special handling)
+            this.applyTimeBasedMechanics(world, player, timeComponent, stats, bodyParts);
+        }
+    }
+
+    // Update day tracking and handle midnight crossings
+    updateDayTracking(world, timeComponent) {
+        // Calculate current day from total minutes
+        // Day 1 starts at minute 0, Day 2 starts at minute 1440 (24*60), etc.
+        const currentDay = Math.floor(timeComponent.totalMinutes / 1440) + 1;
+
+        // Check if we've crossed midnight (into a new day)
+        if (currentDay > this.lastDayUpdate) {
+            this.lastDayUpdate = currentDay;
+            timeComponent.day = currentDay;
+
+            // Update lastDayOnShip if player is on ship
+            const shipEntity = world.query(['ShipComponent'])[0];
+            if (shipEntity) {
+                timeComponent.lastDayOnShip = currentDay;
             }
+        } else if (currentDay !== timeComponent.day) {
+            // Sync in case of discrepancy (e.g., after loading save)
+            timeComponent.day = currentDay;
         }
     }
 
@@ -156,11 +180,44 @@ class TimeSystem extends System {
             }
         }
 
-        // Start sleep (time will advance in update loop)
+        // Instantly advance time (no waiting for real-time to pass)
         const sleepDurationMinutes = hoursToSleep * 60;
-        timeComponent.startSleep(sleepDurationMinutes);
+        timeComponent.addMinutes(sleepDurationMinutes);
 
-        // Update last hour tracker to current hour to prevent weird catch-up mechanics
+        // Update day tracking after sleep (handles midnight crossing during sleep)
+        this.updateDayTracking(world, timeComponent);
+
+        // Apply hunger and healing for the hours slept
+        const hungerLoss = HUNGER_LOSS_PER_GAME_HOUR * hoursToSleep;
+        stats.hunger = Math.max(MIN_STAT_VALUE, stats.hunger - hungerLoss);
+
+        // Apply hourly healing for time slept
+        const medicalBonus = skills ? skills.medical : 0;
+        const healingAmount = (HEALING_RATE_PER_GAME_HOUR + medicalBonus) * hoursToSleep;
+
+        let anyPartHealed = false;
+        if (bodyParts) {
+            for (const [partName, efficiency] of bodyParts.parts) {
+                if (efficiency < MAX_STAT_VALUE) {
+                    bodyParts.heal(partName, healingAmount);
+                    anyPartHealed = true;
+                }
+            }
+
+            if (anyPartHealed && skills) {
+                skills.triggers.hasHealedToday = true;
+            }
+        }
+
+        // Apply water consumption during sleep
+        const shipEntity = world.query(['ShipComponent'])[0];
+        if (shipEntity) {
+            const ship = shipEntity.getComponent('ShipComponent');
+            const waterConsumption = 0.1 * hoursToSleep;
+            ship.consumeWater(waterConsumption);
+        }
+
+        // Update last hour tracker to prevent catch-up mechanics
         this.lastHourUpdate = Math.floor(timeComponent.getTotalMinutes() / 60);
 
         // Fade to black
@@ -168,6 +225,11 @@ class TimeSystem extends System {
 
         // Show sleep message
         world.addComponent(player.id, new MessageComponent(`You fall asleep for ${hoursToSleep} hour${hoursToSleep > 1 ? 's' : ''}...`, 'cyan'));
+
+        // Wake up after a brief delay (just for the fade effect)
+        setTimeout(() => {
+            this.wakeUpPlayer(world, player);
+        }, 500); // 0.5 second delay for fade effect
     }
 
     // Fade screen to/from black

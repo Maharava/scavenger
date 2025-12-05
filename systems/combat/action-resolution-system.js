@@ -79,6 +79,18 @@ class ActionResolutionSystem extends System {
         const hitChance = result.hitChance;
         const modifiers = result.modifiers;
 
+        // Apply gun comfort penalty (3 in-game minutes = 180 real seconds)
+        // Only apply penalty if gun has a comfort penalty (negative value)
+        // Comfort bonuses do NOT apply (shooting doesn't make you more comfortable)
+        if (gunStats.comfortPenalty < 0 && attacker.hasComponent('PlayerComponent')) {
+            const stats = attacker.getComponent('CreatureStatsComponent');
+            const comfortMods = attacker.getComponent('ComfortModifiersComponent');
+            if (stats && comfortMods) {
+                // Add timed comfort penalty lasting 3 in-game minutes (180 real seconds)
+                comfortMods.addModifier(gunStats.comfortPenalty, 180);
+            }
+        }
+
         // Roll to hit
         const roll = Math.random() * 100;
         const hit = roll <= hitChance;
@@ -249,6 +261,18 @@ class ActionResolutionSystem extends System {
                 accuracy -= COMBAT_CONSTANTS.TORSO_ACCURACY_PENALTY;
                 modifiers.torsoDamage = -COMBAT_CONSTANTS.TORSO_ACCURACY_PENALTY;
             }
+        }
+
+        // Temperature zone penalties (applies when temperature system is active)
+        // TODO: Get temperature zone from TemperatureSystem when implemented
+        // For now, this is a placeholder that will activate when tempZone is set
+        const tempZone = world.tempZone || 'comfortable'; // Default comfortable
+        if (tempZone === 'harsh') {
+            accuracy -= 10;
+            modifiers.temperature = -10;
+        } else if (tempZone === 'extreme') {
+            accuracy -= 25;
+            modifiers.temperature = -25;
         }
 
         // Out-of-range penalty: -25% per tile beyond weapon range

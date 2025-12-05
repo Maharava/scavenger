@@ -13,7 +13,8 @@ function calculateArmourStats(world, armourEntity) {
         maxDurability: 0,
         resistances: { kinetic: 0, energy: 0, toxin: 0, radiation: 0 },
         tempMin: 0,
-        tempMax: 0
+        tempMax: 0,
+        comfort: 0
     };
 
     // Calculate stats from each attached component
@@ -47,6 +48,9 @@ function calculateArmourStats(world, armourEntity) {
         }
         if (statMod.modifiers.tempMax) {
             stats.tempMax += statMod.modifiers.tempMax;
+        }
+        if (statMod.modifiers.comfort) {
+            stats.comfort += statMod.modifiers.comfort;
         }
     }
 
@@ -91,6 +95,7 @@ function updateArmourStats(world, armourEntity) {
     armourStats.resistances = calculatedStats.resistances;
     armourStats.tempMin = calculatedStats.tempMin;
     armourStats.tempMax = calculatedStats.tempMax;
+    armourStats.comfort = calculatedStats.comfort;
 }
 
 // Helper function to calculate gun stats from attached parts

@@ -24,6 +24,7 @@ const MAP_DATA = {
         ],
         // Doors at positions (4,3), (3,5), (3,8)
         // Bed at position (1,6) for sleeping
+        // Hydroponics Bay at (1,8), Water Tank at (1,9)
         // Airlock at (8,8) for starting expeditions
         interactables: [
             { id: 'DOOR_CLOSED', x: 5, y: 3 },
@@ -31,6 +32,8 @@ const MAP_DATA = {
             { id: 'DOOR_CLOSED', x: 3, y: 8 },
             { id: 'BED', x: 1, y: 6 },
             { id: 'HYDROPONICS_BAY', x: 1, y: 8 },
+            { id: 'WATER_TANK', x: 1, y: 9 },
+            { id: 'WATER_CANISTER', x: 2, y: 9 },
             { id: 'Airlock', x: 8, y: 8 }
         ],
         creatures: [],

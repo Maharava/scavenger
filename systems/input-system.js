@@ -31,18 +31,23 @@ class InputSystem extends System {
             this.mouseX = e.clientX - rect.left;
             this.mouseY = e.clientY - rect.top;
 
-            // Calculate which tile is hovered (20px per tile from style.css)
-            const TILE_SIZE = 20;
-            const screenTileX = Math.floor(this.mouseX / TILE_SIZE);
-            const screenTileY = Math.floor(this.mouseY / TILE_SIZE);
-
-            // Convert screen coordinates to world coordinates using camera offset
-            // Camera offset will be set by RenderSystem
+            // Calculate which tile is hovered using actual container dimensions
+            // Tile size is dynamic based on viewport size
             if (this.world && this.world.game) {
+                const tileWidth = rect.width / this.world.game.width;
+                const tileHeight = rect.height / this.world.game.height;
+
+                const screenTileX = Math.floor(this.mouseX / tileWidth);
+                const screenTileY = Math.floor(this.mouseY / tileHeight);
+
+                // Convert screen coordinates to world coordinates using camera offset
                 this.hoveredTileX = screenTileX + this.world.game.cameraX;
                 this.hoveredTileY = screenTileY + this.world.game.cameraY;
             } else {
                 // Fallback if world not yet initialized
+                const TILE_SIZE = 20;
+                const screenTileX = Math.floor(this.mouseX / TILE_SIZE);
+                const screenTileY = Math.floor(this.mouseY / TILE_SIZE);
                 this.hoveredTileX = screenTileX;
                 this.hoveredTileY = screenTileY;
             }
@@ -186,6 +191,40 @@ class InputSystem extends System {
         }
 
         const key = this.keys.values().next().value;
+
+        // Check for selection menu first (simpler, higher priority)
+        const selectionMenuEntity = world.query(['SelectionMenuComponent'])[0];
+        if (selectionMenuEntity) {
+            // --- Selection Menu Input ---
+            const selectionMenu = selectionMenuEntity.getComponent('SelectionMenuComponent');
+            switch (key) {
+                case 'w':
+                    // Navigate up
+                    selectionMenu.selectedIndex = Math.max(0, selectionMenu.selectedIndex - 1);
+                    break;
+                case 's':
+                    // Navigate down
+                    selectionMenu.selectedIndex = Math.min(selectionMenu.interactables.length - 1, selectionMenu.selectedIndex + 1);
+                    break;
+                case ' ':
+                    // Select interactable
+                    const selected = selectionMenu.interactables[selectionMenu.selectedIndex];
+                    const interactableComp = selected.entity.getComponent('InteractableComponent');
+                    const script = SCRIPT_REGISTRY[interactableComp.script];
+                    if (script) {
+                        script(world.game, selected.entity, interactableComp.scriptArgs);
+                    }
+                    // Close selection menu
+                    selectionMenuEntity.removeComponent('SelectionMenuComponent');
+                    break;
+                case 'escape':
+                    // Close selection menu
+                    selectionMenuEntity.removeComponent('SelectionMenuComponent');
+                    break;
+            }
+            this.keys.clear();
+            return;
+        }
 
         const menuEntity = world.query(['MenuComponent'])[0];
 

@@ -78,8 +78,7 @@ const EQUIPMENT_DATA = [
         "description": "Reduces noise and slightly improves accuracy.",
         "modifiers": {
             "accuracy": 5,
-            "damageAmount": -1,
-            "comfortPenalty": 1 // Less jarring to fire
+            "damageAmount": -1
         }
     },
 
@@ -125,8 +124,7 @@ const EQUIPMENT_DATA = [
         "part_type": "mod_rifle",
         "description": "A bipod for stability when firing from prone position.",
         "modifiers": {
-            "accuracy": 10,
-            "comfortPenalty": 2 // Makes firing more comfortable
+            "accuracy": 10
         }
     },
     {
@@ -139,8 +137,7 @@ const EQUIPMENT_DATA = [
         "description": "A large suppressor for rifles, reduces noise significantly.",
         "modifiers": {
             "accuracy": 3,
-            "damageAmount": -2,
-            "comfortPenalty": 3 // Much less jarring
+            "damageAmount": -2
         }
     },
 
@@ -448,10 +445,11 @@ const EQUIPMENT_DATA = [
         "colour": "#888",
         "weight": 225,
         "part_type": "underlay",
-        "description": "A padded underlay for warmth in cold environments.",
+        "description": "A padded underlay for warmth and comfort in cold environments.",
         "modifiers": {
             "tempMin": 8,
-            "tempMax": 3
+            "tempMax": 3,
+            "comfort": 3
         }
     },
     {
@@ -461,10 +459,11 @@ const EQUIPMENT_DATA = [
         "colour": "#777",
         "weight": 225,
         "part_type": "underlay",
-        "description": "A breathable mesh underlay for hot environments.",
+        "description": "A breathable mesh underlay for hot environments. Very comfortable.",
         "modifiers": {
             "tempMin": 1,
-            "tempMax": 10
+            "tempMax": 10,
+            "comfort": 5
         }
     },
     {
@@ -671,9 +670,8 @@ const EQUIPMENT_DATA = [
         "colour": "#f66",
         "weight": 150,
         "part_type": "mod_pistol",
-        "description": "A heated grip module. Improves comfort in cold environments.",
+        "description": "A heated grip module. Helps in cold environments.",
         "modifiers": {
-            "comfortPenalty": 2,  // Reduces comfort penalty
             "tempMin": 5  // Helps in cold temps
         }
     }
