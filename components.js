@@ -170,6 +170,12 @@ class InteractableComponent {
     }
 }
 
+class LootContainerComponent {
+    constructor(lootInventory = new Map()) {
+        this.lootInventory = lootInventory; // Map of itemName -> { entityId, quantity }
+    }
+}
+
 class ItemComponent {
     constructor(name, description = '', weight = 0, slots = 1.0) {
         this.name = name;
@@ -482,6 +488,17 @@ class ToolStatsComponent {
     }
 }
 
+// --- SCAVENGE NODE COMPONENTS ---
+
+class ScavengeNodeComponent {
+    constructor(nodeTypeId, lootItems = [], searched = false) {
+        this.nodeTypeId = nodeTypeId;      // Reference to NODE_TYPES id
+        this.lootItems = lootItems;        // Array of item entity IDs
+        this.searched = searched;          // Has been looted
+        this.difficulty = null;            // Set from NODE_TYPES data during initialization
+    }
+}
+
 // --- LIGHTING COMPONENTS ---
 
 class LightSourceComponent {
@@ -647,11 +664,16 @@ class BodyPartHitTable {
 
 // Ship Component - Manages ship resources (Water and Fuel)
 class ShipComponent {
-    constructor(maxWater = 100, maxFuel = 100) {
+    constructor(maxWater = 100, maxFuel = 100, cargoCapacity = 20) {
         this.water = maxWater;
         this.maxWater = maxWater;
         this.fuel = maxFuel;
         this.maxFuel = maxFuel;
+
+        // Cargo hold inventory
+        this.cargoCapacity = cargoCapacity; // Maximum number of cargo slots
+        this.cargo = new Map(); // Map<string | number, { entityId: number, quantity: number }>
+        // Same structure as InventoryComponent for consistency
     }
 
     // Get water percentage (0-100)
@@ -684,12 +706,45 @@ class ShipComponent {
 
     // Add water (e.g., from refilling)
     addWater(amount) {
+        const added = Math.min(amount, this.maxWater - this.water);
         this.water = Math.min(this.maxWater, this.water + amount);
+        return added;
     }
 
     // Add fuel (e.g., from refilling)
     addFuel(amount) {
         this.fuel = Math.min(this.maxFuel, this.fuel + amount);
+    }
+
+    // Cargo management methods
+
+    // Get total slots used in cargo
+    getTotalCargoSlotsUsed(world) {
+        let totalSlots = 0;
+        for (const [itemKey, itemData] of this.cargo) {
+            const itemEntity = world.getEntity(itemData.entityId);
+            if (itemEntity) {
+                const itemComponent = itemEntity.getComponent('ItemComponent');
+                if (itemComponent) {
+                    totalSlots += itemComponent.slots * itemData.quantity;
+                }
+            }
+        }
+        return totalSlots;
+    }
+
+    // Check if an item can be added to cargo
+    canAddItemToCargo(world, itemEntity, itemCount = 1) {
+        const itemComponent = itemEntity.getComponent('ItemComponent');
+        if (!itemComponent) return false;
+
+        const newSlots = this.getTotalCargoSlotsUsed(world) + (itemComponent.slots * itemCount);
+        return newSlots <= this.cargoCapacity;
+    }
+
+    // Expand cargo capacity (for future building upgrades)
+    expandCargoCapacity(additionalSlots) {
+        this.cargoCapacity += additionalSlots;
     }
 }
 
@@ -788,5 +843,92 @@ class SkillsComponent {
                 repair: -1
             }
         };
+    }
+}
+
+// Placement Mode Component - Tracks building placement cursor state
+class PlacementModeComponent {
+    constructor(buildableId, startX, startY) {
+        this.buildableId = buildableId;         // Which buildable is being placed
+        this.cursorX = startX;                   // Current cursor position
+        this.cursorY = startY;
+        this.cursorFlashTimer = 0;               // Timer for flashing effect
+        this.cursorVisible = true;               // Flashing state
+        this.flashInterval = 500;                // Milliseconds between flashes
+    }
+}
+
+// --- SHIP INTERACTABLE COMPONENTS ---
+
+// Showering - Player is using shower and cannot move
+class ShoweringComponent {
+    constructor(startX, startY, originalX, originalY) {
+        this.startX = startX;                    // Shower tile X
+        this.startY = startY;                    // Shower tile Y
+        this.originalX = originalX;              // Player's original position
+        this.originalY = originalY;              // To return to after shower
+        this.duration = 5000;                    // 5 seconds in milliseconds
+        this.elapsed = 0;                        // Time elapsed
+        this.blinkInterval = 500;                // Blink every 0.5 seconds
+        this.lastBlink = 0;                      // Last blink time
+        this.visible = true;                     // Current visibility state
+    }
+}
+
+// Shower Lockout - Prevents shower benefits for 8 hours
+class ShowerLockoutComponent {
+    constructor(lockoutEndTime) {
+        this.lockoutEndTime = lockoutEndTime;    // Game time when lockout ends
+    }
+}
+
+// Water Recycler - Tag component for ship (reduces water usage by 50%)
+class WaterRecyclerComponent {}
+
+// Life Support - Tracks upgrade level and comfort settings
+class LifeSupportComponent {
+    constructor(level = 0) {
+        this.level = level;                      // 0 = none, 1-3 = upgrade tiers
+        this.baseComfort = this.getBaseComfort(level);
+        this.maxComfort = this.getMaxComfort(level);
+    }
+
+    getBaseComfort(level) {
+        const bases = [30, 10, 25, 40]; // 0=default, 1-3=tiers
+        return bases[level] || 30;
+    }
+
+    getMaxComfort(level) {
+        const maxes = [100, 70, 85, 100]; // 0=default, 1-3=tiers
+        return maxes[level] || 100;
+    }
+
+    upgrade() {
+        if (this.level < 3) {
+            this.level++;
+            this.baseComfort = this.getBaseComfort(this.level);
+            this.maxComfort = this.getMaxComfort(this.level);
+            return true;
+        }
+        return false;
+    }
+}
+
+// Auto-Doc Treatment - Player is being treated (fade to black)
+class AutoDocTreatmentComponent {
+    constructor(treatmentTime) {
+        this.treatmentTime = treatmentTime;      // How long treatment takes (in game minutes)
+        this.startTime = null;                   // Set when treatment starts
+    }
+}
+
+// Refining - Item being refined into fuel
+class RefiningComponent {
+    constructor(itemEntityId, itemName, duration, outputAmount) {
+        this.itemEntityId = itemEntityId;        // Entity being refined
+        this.itemName = itemName;                // Name for display
+        this.startTime = null;                   // When refining started
+        this.duration = duration;                // How long it takes (minutes)
+        this.outputAmount = outputAmount;        // Fuel produced
     }
 }

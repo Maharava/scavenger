@@ -1,9 +1,26 @@
-// CombatSystem - Manages combat lifecycle, turn order, and combat sessions
+/**
+ * Combat System
+ * =============
+ * Manages the combat lifecycle, turn order, and active combat sessions.
+ *
+ * Responsibilities:
+ * - Detecting when combat should start (enemy proximity/awareness)
+ * - Managing turn order and action points
+ * - Processing player and enemy actions
+ * - Handling combat state transitions (start, end, flee)
+ * - Managing stress and morale during combat
+ *
+ * Combat Flow:
+ * 1. checkForCombatStart() - Detects enemies within range
+ * 2. startCombat() - Initializes combat session with turn order
+ * 3. processCombat() - Main combat loop (player turn, enemy turns)
+ * 4. endCombat() - Cleans up combat state
+ */
 
 class CombatSystem extends System {
     constructor() {
         super();
-        this.activeCombatSession = null;
+        this.activeCombatSession = null; // Stores current combat state and participants
     }
 
     update(world) {
@@ -18,8 +35,12 @@ class CombatSystem extends System {
         }
     }
 
+    /**
+     * Checks if combat should initiate based on enemy proximity.
+     * Enemies detect the player if within detection range and have line-of-sight.
+     */
     checkForCombatStart(world) {
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         if (!player) return;
 
         const playerPos = player.getComponent('PositionComponent');
@@ -72,7 +93,7 @@ class CombatSystem extends System {
         this.rollInitiative(world);
 
         // Set player stress to minimum 20 (adrenaline)
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         const stats = player.getComponent('CreatureStatsComponent');
         if (stats && stats.stress < COMBAT_CONSTANTS.COMBAT_ENTRY_MIN_STRESS) {
             stats.stress = COMBAT_CONSTANTS.COMBAT_ENTRY_MIN_STRESS;
@@ -128,7 +149,7 @@ class CombatSystem extends System {
     showSelectedTarget(world) {
         if (!this.activeCombatSession || !this.activeCombatSession.selectedEnemyId) return;
 
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         if (!player) return;
 
         const target = world.getEntity(this.activeCombatSession.selectedEnemyId);
@@ -145,7 +166,7 @@ class CombatSystem extends System {
     // Adrenal Spiker provides +2 initiative bonus at combat start (once per combat)
     // Automatically consumes 1 use when activated
     checkAndActivateAdrenalSpiker(world) {
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         if (!player) return;
 
         const equipped = player.getComponent('EquippedItemsComponent');
@@ -205,7 +226,7 @@ class CombatSystem extends System {
         }
 
         // Sort by roll descending, ties go to player
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         rolls.sort((a, b) => {
             if (a.roll === b.roll) {
                 // Tie: player wins
@@ -287,7 +308,7 @@ class CombatSystem extends System {
             }
         } else {
             // AI turn
-            const aiSystem = world.systems.find(s => s.constructor.name === 'CombatAISystem');
+            const aiSystem = world.getSystem(CombatAISystem);
             if (aiSystem && !combatant.hasActedThisTurn) {
                 aiSystem.processAITurn(world, activeEntity, this.activeCombatSession);
                 combatant.hasActedThisTurn = true;
@@ -337,7 +358,7 @@ class CombatSystem extends System {
                 timeComponent.addMinutes(1);
 
                 // Check for day changes after time increment
-                const timeSystem = world.systems.find(s => s.constructor.name === 'TimeSystem');
+                const timeSystem = world.getSystem(TimeSystem);
                 if (timeSystem) {
                     timeSystem.updateDayTracking(world, timeComponent);
                 }
@@ -347,7 +368,7 @@ class CombatSystem extends System {
         // Show whose turn it is
         const newActiveId = this.activeCombatSession.getActiveCombatant();
         const newActiveEntity = world.getEntity(newActiveId);
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
 
         if (newActiveEntity && newActiveEntity.hasComponent('PlayerComponent')) {
             // Player's turn - reset Chaff Spitter flag (resets each turn cycle)
@@ -375,7 +396,7 @@ class CombatSystem extends System {
     }
 
     checkCombatEnd(world) {
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         if (!player) return;
 
         const bodyParts = player.getComponent('BodyPartsComponent');
@@ -402,7 +423,7 @@ class CombatSystem extends System {
     }
 
     endCombat(world, result) {
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
 
         // Remove combat components
         for (const id of this.activeCombatSession.participants) {
@@ -414,8 +435,8 @@ class CombatSystem extends System {
 
         // Handle result
         if (result === 'victory') {
-            world.addComponent(player.id, new MessageComponent('Victory!', 'green'));
-            // TODO: Spawn loot corpses
+            world.addComponent(player.id, new MessageComponent('Victory! Check for loot.', 'green'));
+            // Corpses spawned by damage-system.js when enemies die
         } else if (result === 'defeat') {
             world.addComponent(player.id, new MessageComponent('You died! Returning to ship...', 'red'));
             this.handlePlayerDeath(world, player);
@@ -429,7 +450,7 @@ class CombatSystem extends System {
 
     handlePlayerDeath(world, player) {
         // 1. Apply skill regression penalty
-        const skillsSystem = world.systems.find(s => s.constructor.name === 'SkillsSystem');
+        const skillsSystem = world.getSystem(SkillsSystem);
         if (skillsSystem) {
             skillsSystem.applyDeathPenalty(world, player);
         }
@@ -514,7 +535,7 @@ class CombatSystem extends System {
 
     // Request player action (called by InputSystem or UI)
     requestPlayerAction(world, actionType, args) {
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         if (!player) return false;
 
         const combatant = player.getComponent('CombatantComponent');
@@ -534,7 +555,7 @@ class CombatSystem extends System {
         }
 
         // Process action via ActionResolutionSystem
-        const actionSystem = world.systems.find(s => s.constructor.name === 'ActionResolutionSystem');
+        const actionSystem = world.getSystem(ActionResolutionSystem);
         if (actionSystem) {
             const success = actionSystem.resolveAction(world, player, actionType, args);
             if (success) {

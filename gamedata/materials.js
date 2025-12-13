@@ -12,7 +12,8 @@ const MATERIAL_DATA = {
         weight: 200,
         slots: 0.5,
         stackable: true,
-        stackLimit: 50
+        stackLimit: 50,
+        tags: ['basic_materials', 'industrial']
     },
 
     'ARAMID_FIBRES': {
@@ -24,7 +25,8 @@ const MATERIAL_DATA = {
         weight: 150,
         slots: 0.5,
         stackable: true,
-        stackLimit: 50
+        stackLimit: 50,
+        tags: ['basic_materials', 'industrial']
     },
 
     'BASIC_ELECTRONICS': {
@@ -36,7 +38,8 @@ const MATERIAL_DATA = {
         weight: 100,
         slots: 0.5,
         stackable: true,
-        stackLimit: 50
+        stackLimit: 50,
+        tags: ['electronics', 'basic_materials']
     },
 
     'SALVAGED_COMPONENTS': {
@@ -48,7 +51,8 @@ const MATERIAL_DATA = {
         weight: 250,
         slots: 0.5,
         stackable: true,
-        stackLimit: 50
+        stackLimit: 50,
+        tags: ['basic_materials', 'industrial']
     },
 
     // --- Organic Materials ---
@@ -61,7 +65,8 @@ const MATERIAL_DATA = {
         weight: 180,
         slots: 0.5,
         stackable: true,
-        stackLimit: 50
+        stackLimit: 50,
+        tags: ['organic', 'nature']
     },
 
     'RAW_BIOMASS': {
@@ -73,7 +78,8 @@ const MATERIAL_DATA = {
         weight: 300,
         slots: 0.5,
         stackable: true,
-        stackLimit: 50
+        stackLimit: 50,
+        tags: ['organic', 'nature']
     },
 
     // --- Chemical Compounds ---
@@ -86,7 +92,8 @@ const MATERIAL_DATA = {
         weight: 150,
         slots: 0.5,
         stackable: true,
-        stackLimit: 30
+        stackLimit: 30,
+        tags: ['chemical', 'utility']
     },
 
     'THERMAL_GEL': {
@@ -98,7 +105,8 @@ const MATERIAL_DATA = {
         weight: 200,
         slots: 0.5,
         stackable: true,
-        stackLimit: 20
+        stackLimit: 20,
+        tags: ['chemical', 'utility']
     },
 
     // --- Advanced Materials ---
@@ -111,7 +119,8 @@ const MATERIAL_DATA = {
         weight: 400,
         slots: 1.0,
         stackable: true,
-        stackLimit: 20
+        stackLimit: 20,
+        tags: ['advanced_materials', 'rare']
     },
 
     'TITANIUM_ALLOY': {
@@ -123,7 +132,8 @@ const MATERIAL_DATA = {
         weight: 500,
         slots: 1.0,
         stackable: true,
-        stackLimit: 20
+        stackLimit: 20,
+        tags: ['advanced_materials', 'industrial', 'rare']
     },
 
     'CERAMIC_COMPOSITE_PLATE': {
@@ -135,7 +145,8 @@ const MATERIAL_DATA = {
         weight: 600,
         slots: 1.0,
         stackable: true,
-        stackLimit: 15
+        stackLimit: 15,
+        tags: ['advanced_materials', 'rare']
     },
 
     'ENERGY_REFLECTIVE_FILM': {
@@ -147,7 +158,8 @@ const MATERIAL_DATA = {
         weight: 100,
         slots: 0.5,
         stackable: true,
-        stackLimit: 10
+        stackLimit: 10,
+        tags: ['advanced_materials', 'rare']
     },
 
     // --- Repair & Consumables ---
@@ -160,7 +172,8 @@ const MATERIAL_DATA = {
         weight: 250,
         slots: 0.5,
         stackable: true,
-        stackLimit: 20
+        stackLimit: 20,
+        tags: ['basic_materials', 'utility']
     },
 
     // --- Tech Components ---
@@ -173,7 +186,8 @@ const MATERIAL_DATA = {
         weight: 300,
         slots: 0.5,
         stackable: true,
-        stackLimit: 15
+        stackLimit: 15,
+        tags: ['electronics', 'advanced_materials']
     },
 
     'INTACT_LOGIC_BOARD': {
@@ -185,7 +199,8 @@ const MATERIAL_DATA = {
         weight: 150,
         slots: 0.5,
         stackable: true,
-        stackLimit: 10
+        stackLimit: 10,
+        tags: ['electronics', 'advanced_materials', 'rare']
     },
 
     'FOCUSING_LENSES': {
@@ -197,6 +212,7 @@ const MATERIAL_DATA = {
         weight: 100,
         slots: 0.5,
         stackable: true,
-        stackLimit: 10
+        stackLimit: 10,
+        tags: ['electronics', 'advanced_materials', 'rare']
     }
 };

@@ -191,6 +191,77 @@ The `RenderSystem` handles module info display:
 3. The info box is rendered above the menu containers
 4. CSS classes: `.module-info-box`, `.module-info-description`, `.module-info-stats`
 
+## Recycling Modules
+
+### Overview
+
+All 40 equipment modules can be recycled at the **Recycler** interactable (marked as 'R' on the ship map, located near the cargo hold). Recycling breaks down loose modules into raw materials, providing a way to recover resources from unwanted or duplicate parts.
+
+### How to Recycle
+
+1. Stand adjacent to the Recycler interactable
+2. Press **Space** to activate it
+3. Select a module from your inventory or ship cargo
+4. The module is destroyed and materials are awarded to your inventory
+
+**Important:** Only loose modules can be recycled. Modules currently installed in equipment must be removed at a workbench first.
+
+### Recycling Components
+
+Each module has a `recyclingComponents` array that defines which materials can be recovered. The system uses probability-based drops:
+
+- **1 material**: 50% chance
+- **2 materials**: 50% and 50% chance (independent rolls)
+- **3 materials**: 50%, 30%, and 20% chance (independent rolls)
+
+Each material is checked independently, so you might receive 0, 1, 2, or 3 materials per recycling attempt.
+
+### Material Assignment Logic
+
+Materials are assigned to modules based on thematic appropriateness and module complexity:
+
+#### Simple Parts (1 material)
+Basic, low-tech components that primarily consist of mechanical parts:
+- **Basic Grip, Compact Grip, Textured Grip**: Salvaged Components
+- **Padded Underlay, Mesh Underlay**: Aramid Fibres
+- **Basic Overlay, Camouflage Overlay**: Aramid Fibres + Polymer Resin
+
+#### Standard Parts (2 materials)
+Most modules fall into this category, combining mechanical components with secondary materials:
+- **Barrels (Short, Long, Rifled)**: Salvaged Components + Polymer Resin
+- **Chambers (Standard, Reinforced, Precision)**: Salvaged Components + Polymer Resin
+- **Basic Underlay**: Polymer Resin + Aramid Fibres
+- **Thermal Underlay**: Thermal Gel + Aramid Fibres
+- **Polymer Material**: Polymer Resin + Chemical Compounds
+- **Basic Material**: Salvaged Components + Polymer Resin
+
+#### Advanced Parts (3 materials)
+Complex modules with electronics, precision optics, or advanced materials:
+- **Pistol/Rifle Laser Sight**: Basic Electronics + Focusing Lenses + High Capacity Battery
+- **Pistol/Rifle Cooling System**: Basic Electronics + Thermal Gel + Chemical Compounds
+- **Rifle Scope**: Basic Electronics + Focusing Lenses + **Intact Logic Board**
+- **Range Finder**: Basic Electronics + Focusing Lenses + **Intact Logic Board**
+- **Composite Material**: Polymer Resin + Aramid Fibres + Chemical Compounds
+- **Ceramic Material**: Ceramic Composite Plate + Polymer Resin + Chemical Compounds
+- **Reflective Overlay**: **Energy Reflective Film** + Aramid Fibres + Basic Electronics
+- **Ablative Overlay**: Ceramic Composite Plate + Aramid Fibres + Thermal Gel
+
+### Rare Materials
+
+Two materials have special distribution rules:
+
+- **Intact Logic Board**: Only appears on the most advanced modules (Rifle Scope, Range Finder). Represents complex computing components.
+- **Energy Reflective Film**: Only appears on Reflective Overlay. Represents rare energy-resistant materials.
+- **Titanium Alloy**: Currently not assigned to any modules. Reserved for future high-tier content.
+
+### Strategy Tips
+
+1. **Recycle Duplicates**: If you have multiple copies of common modules, recycle extras for materials
+2. **Value Advanced Parts**: Advanced modules (scopes, laser sights) give 3 materials and may include rare components
+3. **Check Probability**: Remember that each material rolls independently - you might get unlucky and receive nothing
+4. **Material Needs**: Recycle modules strategically based on what materials you need for building/crafting
+5. **Save Rare Parts**: Think twice before recycling modules with rare materials like Intact Logic Board or Energy Reflective Film
+
 ## Design Philosophy (KISS)
 
 The module system follows the "Keep It Simple, Stupid" principle:
@@ -206,7 +277,7 @@ The module system follows the "Keep It Simple, Stupid" principle:
 Potential additions to the module system:
 
 - **Stat effects for generic modules**: Currently, generic modules have no stat modifiers. Future updates could add balanced bonuses/penalties.
-- **Crafting modules**: Allow players to craft new modules from resources
+- **Crafting modules**: Allow players to craft new modules from materials (recycling is implemented, crafting is next)
 - **Module degradation**: Modules could wear out over time and need replacement
 - **Rarity system**: Uncommon/rare variants with better stats
 - **Module restrictions**: Some modules only work with specific equipment types

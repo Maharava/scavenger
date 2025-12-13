@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Game Cache</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 20px;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-family: monospace;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #0d0;
+        }
+        #output {
+            margin-top: 20px;
+            border: 1px solid #0f0;
+            padding: 10px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Scavenger - Clear Cache Tool</h1>
+
+    <p>This will clear all saved game data and force a fresh start.</p>
+
+    <button onclick="clearAll()">CLEAR ALL GAME DATA</button>
+    <button onclick="showData()">Show Current Data</button>
+
+    <div id="output"></div>
+
+    <script>
+        function clearAll() {
+            const keys = Object.keys(localStorage);
+            const gameKeys = keys.filter(k => k.startsWith('scavenger_'));
+
+            let output = 'Clearing localStorage...\n\n';
+
+            if (gameKeys.length === 0) {
+                output += 'No game data found.\n';
+            } else {
+                gameKeys.forEach(key => {
+                    output += `Deleted: ${key}\n`;
+                    localStorage.removeItem(key);
+                });
+                output += `\nTotal items cleared: ${gameKeys.length}\n`;
+            }
+
+            output += '\n✓ Cache cleared! Reload the game for a fresh start.';
+            document.getElementById('output').textContent = output;
+        }
+
+        function showData() {
+            const keys = Object.keys(localStorage);
+            const gameKeys = keys.filter(k => k.startsWith('scavenger_'));
+
+            let output = 'Current localStorage data:\n\n';
+
+            if (gameKeys.length === 0) {
+                output += 'No game data found.\n';
+            } else {
+                gameKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    output += `${key}:\n`;
+                    output += `  Size: ${value.length} characters\n`;
+                    output += `  Preview: ${value.substring(0, 100)}...\n\n`;
+                });
+            }
+
+            document.getElementById('output').textContent = output;
+        }
+    </script>
+</body>
+</html>

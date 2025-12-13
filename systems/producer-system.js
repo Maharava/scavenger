@@ -106,7 +106,13 @@ class ProducerSystem extends System {
 
         if (activeHydroponicsBays > 0) {
             // Consume water per active bay per hour (configurable via HYDROPONICS_WATER_PER_HOUR)
-            const waterConsumption = HYDROPONICS_WATER_PER_HOUR * activeHydroponicsBays * hoursPassed;
+            let waterConsumption = HYDROPONICS_WATER_PER_HOUR * activeHydroponicsBays * hoursPassed;
+
+            // Apply water recycler reduction if present
+            if (shipEntity.hasComponent('WaterRecyclerComponent')) {
+                waterConsumption *= 0.5; // 50% reduction
+            }
+
             ship.consumeWater(waterConsumption);
         }
     }

@@ -20,6 +20,9 @@ function buildWorld(world, mapId, generatedMap = null) {
     world.nextEntityId = 0;
     world.solidTileCache.clear();
 
+    // Store current map ID for systems to check
+    world.currentMap = mapId;
+
     // Calculate map dimensions
     const mapWidth = map.width || (map.layout && map.layout[0] ? map.layout[0].length : 0);
     const mapHeight = map.height || (map.layout ? map.layout.length : 0);
@@ -56,6 +59,36 @@ function buildWorld(world, mapId, generatedMap = null) {
 
     // 2. Create interactable entities
     map.interactables.forEach(item => {
+        // Handle scavenge nodes
+        if (item.type === 'scavenge_node') {
+            const nodeType = NODE_TYPES[item.nodeTypeId];
+            if (!nodeType) {
+                console.warn(`Node type not found: ${item.nodeTypeId}`);
+                return;
+            }
+
+            const entity = world.createEntity();
+            world.addComponent(entity, new PositionComponent(item.x, item.y));
+
+            // Random name variant
+            const name = game.rng.choice(nodeType.nameVariants);
+            world.addComponent(entity, new NameComponent(name));
+
+            // Renderable
+            world.addComponent(entity, new RenderableComponent(nodeType.char, nodeType.colour, 1));
+            world.addComponent(entity, new VisibilityStateComponent());
+
+            // Scavenge node component
+            const nodeComponent = new ScavengeNodeComponent(item.nodeTypeId, item.lootItems, false);
+            nodeComponent.difficulty = nodeType.searchDifficulty;
+            world.addComponent(entity, nodeComponent);
+
+            // Interactable
+            world.addComponent(entity, new InteractableComponent('searchNode', {}));
+
+            return;
+        }
+
         let def = INTERACTABLE_DATA.find(i => i.id === item.id);
 
         // If not found in INTERACTABLE_DATA, check other data sources
@@ -176,6 +209,21 @@ function buildWorld(world, mapId, generatedMap = null) {
             world.addComponent(entity, new InteractableComponent(def.script, def.scriptArgs));
         }
 
+        // Add special components for certain interactables
+        if (item.id === 'LIFE_SUPPORT') {
+            world.addComponent(entity, new LifeSupportComponent(0)); // Start at tier 0
+        }
+        if (item.id === 'WATER_RECYCLER') {
+            // Find the ship entity and add WaterRecyclerComponent to it
+            const shipEntities = world.query(['ShipComponent']);
+            if (shipEntities.length > 0) {
+                const shipEntity = shipEntities[0];
+                if (!shipEntity.hasComponent('WaterRecyclerComponent')) {
+                    world.addComponent(shipEntity.id, new WaterRecyclerComponent());
+                }
+            }
+        }
+
         if (def.solid) {
             world.addComponent(entity, new SolidComponent());
             world.addSolidTileToCache(item.x, item.y); // Add to cache for LOS calculations
@@ -199,16 +247,18 @@ function buildWorld(world, mapId, generatedMap = null) {
     world.addComponent(player, new RenderableComponent(playerDef.char, playerDef.colour, 2));
     world.addComponent(player, new VisibilityStateComponent());
 
-    // Create stats component with initial hunger at 50%
+    // Create stats component with initial values for testing new ship systems
     const stats = new CreatureStatsComponent(50);
     stats.rest = 10; // Set rest to 10% for testing
+    stats.stress = 80; // High stress for testing shower
+    stats.comfort = 15; // Low comfort for testing shower and life support
     world.addComponent(player, stats);
 
-    // Create body parts and set all to 50% for testing
+    // Create body parts with injuries for testing Auto-Doc
     const bodyParts = new BodyPartsComponent();
-    bodyParts.setPart('head', 50);
-    bodyParts.setPart('torso', 50);
-    bodyParts.setPart('limbs', 50);
+    bodyParts.setPart('head', 65);   // 65% health (35% injury)
+    bodyParts.setPart('torso', 50);  // 50% health (50% injury)
+    bodyParts.setPart('limbs', 40);  // 40% health (60% injury)
     world.addComponent(player, bodyParts);
 
     world.addComponent(player, new InventoryComponent(4, 13000));
@@ -235,28 +285,6 @@ function buildWorld(world, mapId, generatedMap = null) {
     const playerInventory = playerEntity.getComponent('InventoryComponent');
     playerInventory.items.clear();
 
-    const seeds_to_add = ["LETTUCE_SEEDS", "RICE_SEEDS", "STRAWBERRY_SEEDS", "TOMATO_SEEDS", "SOYBEAN_SEEDS"];
-
-    for (const seed_id of seeds_to_add) {
-        // Look for seeds in ITEM_DATA
-        let seedDef = ITEM_DATA.find(item => item.id === seed_id);
-        if (!seedDef) seedDef = INTERACTABLE_DATA.find(item => item.id === seed_id); // fallback
-
-        if (seedDef) {
-            const seedEntity = world.createEntity();
-            world.addComponent(seedEntity, new ItemComponent(seedDef.name, '', seedDef.weight || 0, seedDef.slots || 0));
-            world.addComponent(seedEntity, new NameComponent(seedDef.name));
-            world.addComponent(seedEntity, new StackableComponent(1, 99));
-
-            if (playerInventory.items.has(seedDef.name)) {
-                const existingStack = playerInventory.items.get(seedDef.name);
-                existingStack.quantity += 5; // Give 5 of each seed for testing
-            } else {
-                playerInventory.items.set(seedDef.name, { entityId: seedEntity, quantity: 5 });
-            }
-        }
-    }
-
     // Create ship entity if this is the SHIP map
     if (mapId === 'SHIP') {
         const ship = world.createEntity();
@@ -264,8 +292,81 @@ function buildWorld(world, mapId, generatedMap = null) {
 
         // Load saved ship state (if returning from expedition)
         const player = world.query(['PlayerComponent'])[0];
-        if (player) {
-            loadShipState(world, player);
+        const shipLoaded = player ? loadShipState(world, player) : false;
+
+        // If no save was loaded, initialize with test modules for recycler testing
+        if (!shipLoaded) {
+            const playerInventory = player.getComponent('InventoryComponent');
+            const shipComponent = world.getEntity(ship).getComponent('ShipComponent');
+
+            console.log('\n=== SPAWNING TEST MODULES ===');
+
+            // Add test modules for recycler testing (player inventory)
+            const testModules = [
+                { id: 'RUBBER_GRIP', quantity: 2 },          // Simple: 1 material (Polymer Resin)
+                { id: 'WOODEN_GRIP', quantity: 1 },          // Simple: 1 material (Salvaged Components)
+                { id: 'SHORT_BARREL', quantity: 2 },         // Standard: 2 materials
+                { id: 'STANDARD_CHAMBER', quantity: 1 },     // Standard: 2 materials
+                { id: 'PISTOL_LASER_SIGHT', quantity: 1 }    // Advanced: 3 materials
+            ];
+
+            for (const module of testModules) {
+                const moduleDef = EQUIPMENT_DATA.find(eq => eq.id === module.id);
+                if (moduleDef) {
+                    console.log(`Spawning: ${moduleDef.name} (${module.id}) x${module.quantity}`);
+                    console.log(`  part_type: ${moduleDef.part_type}`);
+
+                    const moduleEntity = world.createEntity();
+                    world.addComponent(moduleEntity, new ItemComponent(moduleDef.name, moduleDef.description || '', moduleDef.weight || 0, 0.5));
+                    world.addComponent(moduleEntity, new NameComponent(moduleDef.name));
+                    world.addComponent(moduleEntity, new PartComponent(moduleDef.part_type)); // Modules have PartComponent!
+                    world.addComponent(moduleEntity, new RenderableComponent(moduleDef.char, moduleDef.colour, 0));
+
+                    console.log(`  Entity ID: ${moduleEntity}`);
+                    console.log(`  Components: ItemComponent ✓, PartComponent(${moduleDef.part_type}) ✓`);
+
+                    if (playerInventory.items.has(moduleDef.name)) {
+                        const existingStack = playerInventory.items.get(moduleDef.name);
+                        existingStack.quantity += module.quantity;
+                        console.log(`  Added to existing stack, new quantity: ${existingStack.quantity}`);
+                    } else {
+                        playerInventory.items.set(moduleDef.name, { entityId: moduleEntity, quantity: module.quantity });
+                        console.log(`  Created new inventory entry`);
+                    }
+                } else {
+                    console.log(`ERROR: Module definition not found for ${module.id}`);
+                }
+            }
+
+            // Add some test modules to ship cargo too
+            if (shipComponent) {
+                console.log('\n--- Adding to Ship Cargo ---');
+                const cargoModules = [
+                    { id: 'PISTOL_SUPPRESSOR', quantity: 1 },    // 3 materials
+                    { id: 'SHORT_BARREL', quantity: 1 }           // 2 materials
+                ];
+
+                for (const module of cargoModules) {
+                    const moduleDef = EQUIPMENT_DATA.find(eq => eq.id === module.id);
+                    if (moduleDef) {
+                        console.log(`Spawning to cargo: ${moduleDef.name} (${module.id}) x${module.quantity}`);
+
+                        const moduleEntity = world.createEntity();
+                        world.addComponent(moduleEntity, new ItemComponent(moduleDef.name, moduleDef.description || '', moduleDef.weight || 0, 0.5));
+                        world.addComponent(moduleEntity, new NameComponent(moduleDef.name));
+                        world.addComponent(moduleEntity, new PartComponent(moduleDef.part_type)); // Modules have PartComponent!
+                        world.addComponent(moduleEntity, new RenderableComponent(moduleDef.char, moduleDef.colour, 0));
+
+                        shipComponent.cargo.set(moduleDef.name, { entityId: moduleEntity, quantity: module.quantity });
+                        console.log(`  Added to ship cargo`);
+                    }
+                }
+            }
+
+            console.log('\n=== INVENTORY SUMMARY ===');
+            console.log('Player inventory size:', playerInventory.items.size);
+            console.log('Ship cargo size:', shipComponent ? shipComponent.cargo.size : 0);
+            console.log('=== MODULE SPAWN COMPLETE ===\n');
         }
     }
 
@@ -293,6 +394,100 @@ function buildWorld(world, mapId, generatedMap = null) {
     if (mapId !== 'SHIP') {
         spawnEnemy(world, 'SCAVENGER', 5, 5);
     }
+}
+
+// Helper function to create modular equipment from loadout
+function createEquipmentFromLoadout(world, loadoutId, loadoutType) {
+    const loadout = loadoutType === 'weapon'
+        ? ENEMY_WEAPON_LOADOUTS[loadoutId]
+        : ENEMY_ARMOUR_LOADOUTS[loadoutId];
+
+    if (!loadout) {
+        console.error(`Loadout not found: ${loadoutId}`);
+        return null;
+    }
+
+    // Find base equipment definition
+    const baseDef = EQUIPMENT_DATA.find(e => e.id === loadout.base);
+    if (!baseDef) {
+        console.error(`Base equipment not found: ${loadout.base}`);
+        return null;
+    }
+
+    // Create base equipment entity
+    const equipmentId = world.createEntity();
+    world.addComponent(equipmentId, new ItemComponent(baseDef.name, baseDef.description || '', baseDef.weight || 0, baseDef.slots || 1.0));
+    world.addComponent(equipmentId, new NameComponent(baseDef.name));
+    world.addComponent(equipmentId, new EquipmentComponent(baseDef.equipment_slot));
+    world.addComponent(equipmentId, new RenderableComponent(baseDef.char, baseDef.colour, 1));
+    world.addComponent(equipmentId, new VisibilityStateComponent());
+
+    // Add gun or armour component
+    if (baseDef.gun_type) {
+        world.addComponent(equipmentId, new GunComponent(baseDef.gun_type));
+    }
+    if (baseDef.armour_type) {
+        world.addComponent(equipmentId, new ArmourComponent(baseDef.armour_type));
+    }
+
+    // Create attachment slots
+    const attachmentSlots = new AttachmentSlotsComponent(JSON.parse(JSON.stringify(baseDef.attachment_slots)));
+
+    // Install parts from loadout
+    for (const [slotName, partId] of Object.entries(loadout.parts)) {
+        const slot = attachmentSlots.slots[slotName];
+        if (!slot) continue;
+
+        // Find part definition
+        const partDef = EQUIPMENT_DATA.find(p => p.id === partId);
+        if (!partDef) {
+            console.error(`Part not found: ${partId}`);
+            continue;
+        }
+
+        // Create part entity
+        const partEntityId = world.createEntity();
+        world.addComponent(partEntityId, new ItemComponent(partDef.name, partDef.description || '', partDef.weight || 0, 0.5));
+        world.addComponent(partEntityId, new NameComponent(partDef.name));
+        world.addComponent(partEntityId, new PartComponent(partDef.part_type));
+        world.addComponent(partEntityId, new VisibilityStateComponent());
+
+        // Add stat modifiers if present
+        if (partDef.modifiers && Object.keys(partDef.modifiers).length > 0) {
+            world.addComponent(partEntityId, new StatModifierComponent(partDef.modifiers));
+        }
+
+        // Install part into slot
+        slot.entity_id = partEntityId;
+    }
+
+    world.addComponent(equipmentId, attachmentSlots);
+
+    // Calculate and add stats
+    if (baseDef.gun_type) {
+        updateGunStats(world, world.getEntity(equipmentId));
+    }
+    if (baseDef.armour_type) {
+        updateArmourStats(world, world.getEntity(equipmentId));
+    }
+
+    return equipmentId;
+}
+
+// Helper function to select random loadout from weighted pool
+function selectRandomLoadout(pool) {
+    const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
+    let random = Math.random() * totalWeight;
+
+    for (const item of pool) {
+        random -= item.weight;
+        if (random <= 0) {
+            return item.loadout;
+        }
+    }
+
+    // Fallback to first item
+    return pool[0].loadout;
 }
 
 // Helper function to spawn an enemy
@@ -336,134 +531,28 @@ function spawnEnemy(world, enemyDefId, x, y) {
     // Add equipment component
     world.addComponent(enemyId, new EquippedItemsComponent());
 
-    // Equip weapon if specified
-    if (enemyDef.weapon) {
-        const weaponDef = EQUIPMENT_DATA.find(e => e.id === enemyDef.weapon);
-        if (weaponDef) {
-            const weaponId = world.createEntity();
-            // Create weapon with basic components
-            world.addComponent(weaponId, new ItemComponent(weaponDef.name, weaponDef.weight || 400, weaponDef.volume || 1));
-            world.addComponent(weaponId, new NameComponent(weaponDef.name));
-            world.addComponent(weaponId, new RenderableComponent(weaponDef.char, weaponDef.colour, 1));
-            world.addComponent(weaponId, new VisibilityStateComponent());
+    // Equip weapon and armor from loadout pools (for humanoid enemies)
+    if (enemyDef.loadoutPool && ENEMY_LOADOUT_POOLS[enemyDef.loadoutPool]) {
+        const pool = ENEMY_LOADOUT_POOLS[enemyDef.loadoutPool];
+        const enemy = world.getEntity(enemyId);
+        const equipped = enemy.getComponent('EquippedItemsComponent');
 
-            // Add GunComponent
-            if (weaponDef.gun_type) {
-                world.addComponent(weaponId, new GunComponent(weaponDef.gun_type));
+        // Select and create weapon
+        if (pool.weapons && pool.weapons.length > 0) {
+            const weaponLoadoutId = selectRandomLoadout(pool.weapons);
+            const weaponId = createEquipmentFromLoadout(world, weaponLoadoutId, 'weapon');
+            if (weaponId) {
+                equipped.hand = weaponId;
             }
-
-            // Add AttachmentSlotsComponent
-            if (weaponDef.attachment_slots) {
-                const attachmentSlots = new AttachmentSlotsComponent(weaponDef.attachment_slots);
-
-                // For modular weapons (has attachment slots), install random parts
-                if (Object.keys(weaponDef.attachment_slots).length > 0) {
-                    for (const [slotName, slotData] of Object.entries(attachmentSlots.slots)) {
-                        if (slotData.required) {
-                            // Find compatible parts for this slot
-                            const compatibleParts = EQUIPMENT_DATA.filter(part =>
-                                part.part_type === slotData.accepted_type
-                            );
-
-                            if (compatibleParts.length > 0) {
-                                // Pick a random compatible part
-                                const randomPart = compatibleParts[Math.floor(Math.random() * compatibleParts.length)];
-
-                                // Create the part entity
-                                const partEntityId = world.createEntity();
-                                world.addComponent(partEntityId, new ItemComponent(randomPart.name, randomPart.weight || 50, 0.1));
-                                world.addComponent(partEntityId, new NameComponent(randomPart.name));
-                                world.addComponent(partEntityId, new PartComponent(randomPart.part_type));
-                                world.addComponent(partEntityId, new VisibilityStateComponent());
-
-                                if (randomPart.modifiers && Object.keys(randomPart.modifiers).length > 0) {
-                                    world.addComponent(partEntityId, new StatModifierComponent(randomPart.modifiers));
-                                }
-
-                                // Install it into the slot
-                                slotData.entity_id = partEntityId;
-                            }
-                        }
-                    }
-                }
-
-                world.addComponent(weaponId, attachmentSlots);
-            }
-
-            // For pre-assembled weapons (no attachment slots), add default stats
-            if (weaponDef.gun_type && Object.keys(weaponDef.attachment_slots || {}).length === 0) {
-                const gunStats = new GunStatsComponent();
-                // Default stats based on weapon type
-                switch (weaponDef.gun_type) {
-                    case 'pistol':
-                        gunStats.damageType = 'kinetic';
-                        gunStats.damageAmount = 15;
-                        gunStats.accuracy = 70;
-                        gunStats.range = 5;
-                        gunStats.penetration = 1.0;
-                        gunStats.comfortPenalty = -2;
-                        break;
-                    case 'rifle':
-                        gunStats.damageType = 'kinetic';
-                        gunStats.damageAmount = 20;
-                        gunStats.accuracy = 75;
-                        gunStats.range = 8;
-                        gunStats.penetration = 1.1;
-                        gunStats.comfortPenalty = -3;
-                        break;
-                    case 'energy':
-                        gunStats.damageType = 'energy';
-                        gunStats.damageAmount = 12;
-                        gunStats.accuracy = 80;
-                        gunStats.range = 6;
-                        gunStats.penetration = 0.8;
-                        gunStats.comfortPenalty = 0;
-                        break;
-                    case 'plasma':
-                        gunStats.damageType = 'energy';
-                        gunStats.damageAmount = 25;
-                        gunStats.accuracy = 70;
-                        gunStats.range = 7;
-                        gunStats.penetration = 1.2;
-                        gunStats.comfortPenalty = -1;
-                        break;
-                    default:
-                        gunStats.damageType = 'kinetic';
-                        gunStats.damageAmount = 10;
-                        gunStats.accuracy = 70;
-                        gunStats.range = 5;
-                        gunStats.penetration = 1.0;
-                        gunStats.comfortPenalty = -2;
-                }
-                world.addComponent(weaponId, gunStats);
-            }
-
-            // Equip to hand
-            const enemy = world.getEntity(enemyId);
-            const equipped = enemy.getComponent('EquippedItemsComponent');
-            equipped.hand = weaponId;
         }
-    }
 
-    // Equip armor if specified
-    if (enemyDef.armor) {
-        const armorDef = EQUIPMENT_DATA.find(e => e.id === enemyDef.armor);
-        if (armorDef) {
-            const armorId = world.createEntity();
-            world.addComponent(armorId, new ItemComponent(armorDef.name, armorDef.weight || 800, armorDef.volume || 2));
-            world.addComponent(armorId, new NameComponent(armorDef.name));
-            world.addComponent(armorId, new RenderableComponent(armorDef.char, armorDef.colour, 1));
-            world.addComponent(armorId, new VisibilityStateComponent());
-
-            // Add AttachmentSlotsComponent for armor
-            if (armorDef.attachment_slots) {
-                world.addComponent(armorId, new AttachmentSlotsComponent(armorDef.attachment_slots));
+        // Select and create armor
+        if (pool.armor && pool.armor.length > 0) {
+            const armorLoadoutId = selectRandomLoadout(pool.armor);
+            const armorId = createEquipmentFromLoadout(world, armorLoadoutId, 'armour');
+            if (armorId) {
+                equipped.body = armorId;
             }
-
-            // Equip to body
-            const enemy = world.getEntity(enemyId);
-            const equipped = enemy.getComponent('EquippedItemsComponent');
-            equipped.body = armorId;
         }
     }
 

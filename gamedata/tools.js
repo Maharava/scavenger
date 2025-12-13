@@ -9,6 +9,7 @@ const TOOL_DATA = {
         weight: 300,
         slots: 1.0,
         tool_type: 'light',
+        tags: ['light_source', 'utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -24,6 +25,7 @@ const TOOL_DATA = {
         weight: 180,
         slots: 0.5,
         tool_type: 'light',
+        tags: ['light_source', 'utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -39,6 +41,23 @@ const TOOL_DATA = {
         weight: 50,
         slots: 0.5,
         tool_type: 'light',
+        tags: ['light_source', 'utility'],
+        uses: -1,
+        maxUses: -1,
+        stats: {
+            lightRadius: 6
+        }
+    },
+    'TOOL_LUMINROOT': {
+        id: 'TOOL_LUMINROOT',
+        name: 'Luminroot',
+        description: 'A bioluminescent alien root that emits a soft, steady glow.',
+        char: '%',
+        colour: '#87ceeb',
+        weight: 250,
+        slots: 0.5,
+        tool_type: 'light',
+        tags: ['light_source', 'utility', 'bioluminescent'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -57,6 +76,7 @@ const TOOL_DATA = {
         weight: 100,
         slots: 0.5,
         tool_type: 'consumable',
+        tags: ['combat', 'consumable'],
         uses: 3,
         maxUses: 3,
         stats: {
@@ -73,6 +93,7 @@ const TOOL_DATA = {
         weight: 250,
         slots: 0.5,
         tool_type: 'consumable',
+        tags: ['combat', 'consumable'],
         uses: 5,
         maxUses: 5,
         stats: {
@@ -91,6 +112,7 @@ const TOOL_DATA = {
         weight: 350,
         slots: 1.0,
         tool_type: 'passive',
+        tags: ['medical_supplies', 'utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -106,6 +128,7 @@ const TOOL_DATA = {
         weight: 400,
         slots: 1.0,
         tool_type: 'passive',
+        tags: ['utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -121,6 +144,7 @@ const TOOL_DATA = {
         weight: 600,
         slots: 1.0,
         tool_type: 'passive',
+        tags: ['medical_supplies', 'utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -136,6 +160,7 @@ const TOOL_DATA = {
         weight: 750,
         slots: 1.0,
         tool_type: 'passive',
+        tags: ['utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -151,6 +176,7 @@ const TOOL_DATA = {
         weight: 500,
         slots: 1.0,
         tool_type: 'passive',
+        tags: ['medical_supplies', 'utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -167,6 +193,7 @@ const TOOL_DATA = {
         weight: 1200,
         slots: 1.0,
         tool_type: 'passive',
+        tags: ['utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -182,6 +209,7 @@ const TOOL_DATA = {
         weight: 2000,
         slots: 1.0,
         tool_type: 'passive',
+        tags: ['utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -199,6 +227,7 @@ const TOOL_DATA = {
         weight: 400,
         slots: 1.0,
         tool_type: 'passive',
+        tags: ['utility', 'combat'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -218,6 +247,7 @@ const TOOL_DATA = {
         slots: 1.0,
         tool_type: 'passive',
         equipment_slot: 'backpack',
+        tags: ['utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -234,6 +264,7 @@ const TOOL_DATA = {
         slots: 1.0,
         tool_type: 'passive',
         equipment_slot: 'backpack',
+        tags: ['utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -250,6 +281,7 @@ const TOOL_DATA = {
         slots: 1.0,
         tool_type: 'passive',
         equipment_slot: 'backpack',
+        tags: ['utility'],
         uses: -1,
         maxUses: -1,
         stats: {
@@ -266,6 +298,7 @@ const TOOL_DATA = {
         slots: 1.0,
         tool_type: 'passive',
         equipment_slot: 'backpack',
+        tags: ['utility'],
         uses: -1,
         maxUses: -1,
         stats: {

@@ -23,8 +23,7 @@ const CREATURE_DATA = [
             "torso": 80,
             "limbs": 100
         },
-        "weapon": "RUSTY_PISTOL",  // Modular weapon with random parts
-        "armor": null
+        "loadoutPool": "HOSTILE_HUMAN"  // Uses modular equipment system
     },
 
 
@@ -44,7 +43,7 @@ const CREATURE_DATA = [
             "torso": 40,    // Durability pool
             "limbs": 0
         },
-        "weapon": "LIGHT_LASER",
+        "weapon": null,  // Robots don't use weapons (for now)
         "armor": null,
         "armorStats": {
             "durability": 40,
@@ -71,7 +70,7 @@ const CREATURE_DATA = [
             "torso": 80,
             "limbs": 0
         },
-        "weapon": "PLASMA_RIFLE",
+        "weapon": null,  // Robots don't use weapons (for now)
         "armor": null,
         "armorStats": {
             "durability": 80,

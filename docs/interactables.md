@@ -110,6 +110,18 @@ Adds a `MenuComponent` to the player entity, causing a menu with a title and a l
 | `title`  | String| The title of the menu.                           |
 | `options`| Array | An array of menu options, each with a `label` and an `action`. |
 
+### `openRecyclerMenu`
+
+Opens a menu showing all loose modules from player inventory and ship cargo that can be recycled. Modules currently installed in equipment cannot be recycled until they are removed at a workbench.
+
+**Arguments:** None (uses empty scriptArgs object)
+
+**Behavior:**
+- Scans player inventory and ship cargo for modules with `partType` property
+- Displays modules with quantity and source indicators ([Cargo] suffix)
+- Selecting a module triggers `recycle_module` action
+- Shows "No loose modules" message if none available
+
 ## Menu Actions
 
 The actions for the menu options are defined in the `MENU_ACTIONS` object in `game.js`. These actions manipulate `MenuComponent`s on entities.
@@ -151,4 +163,12 @@ The actions for the menu options are defined in the `MENU_ACTIONS` object in `ga
 | `update_workbench_details`  | Updates the details pane when navigating modules in the workbench.          |
 
 See `module_system.md` for detailed information on the workbench and module swapping system.
+
+### Recycler Actions
+
+| Action                      | Description                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------|
+| `recycle_module`            | Destroys a loose module and awards random materials based on its recyclingComponents array. Uses probability-based drops (50%/30%/20%). |
+
+See `module_system.md` for detailed information on the recycling system and material assignments.
 

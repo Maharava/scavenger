@@ -63,7 +63,7 @@ class InputSystem extends System {
     }
 
     cycleTarget(world, combatSystem) {
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         if (!player) return;
 
         // Get all alive enemies in combat
@@ -245,13 +245,18 @@ class InputSystem extends System {
                     this.navigateMenuHorizontal(menu, 'right', world.game);
                     break;
                 case ' ':
-                    // Select option in current active menu
-                    const selectedOption = this.getSelectedOption(menu);
-                    if (selectedOption) {
-                        const actionTarget = selectedOption.actionArgs || menu.interactable;
-                        const action = MENU_ACTIONS[selectedOption.action];
-                        if (action) {
-                            action(world.game, actionTarget);
+                    // Special handling: If in buildables details view and can afford, enter placement mode
+                    if (menu.selectedBuildable && menu.canAffordBuildable && menu.detailsPane) {
+                        MENU_ACTIONS['enter_placement_mode'](world.game);
+                    } else {
+                        // Normal menu selection
+                        const selectedOption = this.getSelectedOption(menu);
+                        if (selectedOption) {
+                            const actionTarget = selectedOption.actionArgs || menu.interactable;
+                            const action = MENU_ACTIONS[selectedOption.action];
+                            if (action) {
+                                action(world.game, actionTarget);
+                            }
                         }
                     }
                     break;
@@ -275,84 +280,158 @@ class InputSystem extends System {
                     }
                     break;
             }
-        } else { // Process player input
-            // --- Player Input ---
-            const player = world.query(['PlayerComponent'])[0];
-            if (!player || player.hasComponent('ActionComponent')) {
+            this.keys.clear();
+            return;
+        }
+
+        // Check for placement mode (only if no menu is open)
+        const placementEntity = world.query(['PlacementModeComponent'])[0];
+        if (placementEntity) {
+            // --- Placement Mode Input ---
+            const placementMode = placementEntity.getComponent('PlacementModeComponent');
+            const mapData = MAP_DATA['SHIP'];
+            if (!mapData || !mapData.layout) {
                 this.keys.clear();
                 return;
             }
 
-            // Check if player is in combat
-            const inCombat = player.hasComponent('CombatStateComponent');
-            const combatSystem = world.systems.find(s => s.constructor.name === 'CombatSystem');
+            const maxY = mapData.layout.length - 1;
+            const maxX = mapData.layout[0].length - 1;
 
-            // --- Combat-specific Input ---
-            if (inCombat && combatSystem && combatSystem.activeCombatSession) {
-                const activeId = combatSystem.activeCombatSession.getActiveCombatant();
-                const isPlayerTurn = activeId === player.id;
+            // Get buildable to check wall collision
+            const buildable = BUILDABLE_INTERACTABLES.find(b => b.id === placementMode.buildableId);
 
-                if (isPlayerTurn) {
-                    switch (key) {
-                        case 'r': // Cycle through enemies
-                            this.cycleTarget(world, combatSystem);
-                            this.keys.clear();
-                            return;
-                        case ' ': // Space - shoot at selected enemy
-                            if (combatSystem.activeCombatSession.selectedEnemyId) {
-                                combatSystem.requestPlayerAction(world, 'shoot', {
-                                    targetId: combatSystem.activeCombatSession.selectedEnemyId
-                                });
-                            } else {
-                                world.addComponent(player.id, new MessageComponent('No target selected! Press R to select.', 'red'));
-                            }
-                            this.keys.clear();
-                            return;
-                        case 'f': // Flee from combat
-                            combatSystem.requestPlayerAction(world, 'flee');
-                            this.keys.clear();
-                            return;
-                        case 'e': // End turn
-                            const combatant = player.getComponent('CombatantComponent');
-                            if (combatant) {
-                                combatant.hasActedThisTurn = true;
-                                combatSystem.advanceTurn(world);
-                            }
-                            this.keys.clear();
-                            return;
+            switch (key) {
+                case 'w': // Move cursor up
+                    if (placementMode.cursorY > 0) {
+                        let newY = placementMode.cursorY - 1;
+                        // Check if can move through this tile (not wall)
+                        const tile = mapData.layout[newY][placementMode.cursorX];
+                        if (tile !== '+') {
+                            placementMode.cursorY = newY;
+                        }
                     }
+                    break;
+                case 's': // Move cursor down
+                    if (placementMode.cursorY < maxY) {
+                        let newY = placementMode.cursorY + 1;
+                        const tile = mapData.layout[newY][placementMode.cursorX];
+                        if (tile !== '+') {
+                            placementMode.cursorY = newY;
+                        }
+                    }
+                    break;
+                case 'a': // Move cursor left
+                    if (placementMode.cursorX > 0) {
+                        let newX = placementMode.cursorX - 1;
+                        const tile = mapData.layout[placementMode.cursorY][newX];
+                        if (tile !== '+') {
+                            placementMode.cursorX = newX;
+                        }
+                    }
+                    break;
+                case 'd': // Move cursor right
+                    if (placementMode.cursorX < maxX) {
+                        let newX = placementMode.cursorX + 1;
+                        const tile = mapData.layout[placementMode.cursorY][newX];
+                        if (tile !== '+') {
+                            placementMode.cursorX = newX;
+                        }
+                    }
+                    break;
+                case ' ': // Confirm placement
+                    MENU_ACTIONS['confirm_placement'](world.game, {});
+                    break;
+                case 'escape': // Cancel placement
+                    placementEntity.removeComponent('PlacementModeComponent');
+                    world.addComponent(placementEntity.id, new MessageComponent('Placement cancelled.', 'yellow'));
+                    break;
+            }
+            this.keys.clear();
+            return;
+        }
+
+        // Process player input
+        // --- Player Input ---
+        if (!player || player.hasComponent('ActionComponent')) {
+            this.keys.clear();
+            return;
+        }
+
+        // Check if player is in combat
+        const inCombat = player.hasComponent('CombatStateComponent');
+        const combatSystem = world.getSystem(CombatSystem);
+
+        // --- Combat-specific Input ---
+        if (inCombat && combatSystem && combatSystem.activeCombatSession) {
+            const activeId = combatSystem.activeCombatSession.getActiveCombatant();
+            const isPlayerTurn = activeId === player.id;
+
+            if (isPlayerTurn) {
+                switch (key) {
+                    case 'r': // Cycle through enemies
+                        this.cycleTarget(world, combatSystem);
+                        this.keys.clear();
+                        return;
+                    case ' ': // Space - shoot at selected enemy
+                        if (combatSystem.activeCombatSession.selectedEnemyId) {
+                            combatSystem.requestPlayerAction(world, 'shoot', {
+                                targetId: combatSystem.activeCombatSession.selectedEnemyId
+                            });
+                        } else {
+                            world.addComponent(player.id, new MessageComponent('No target selected! Press R to select.', 'red'));
+                        }
+                        this.keys.clear();
+                        return;
+                    case 'f': // Flee from combat
+                        combatSystem.requestPlayerAction(world, 'flee');
+                        this.keys.clear();
+                        return;
+                    case 'e': // End turn
+                        const combatant = player.getComponent('CombatantComponent');
+                        if (combatant) {
+                            combatant.hasActedThisTurn = true;
+                            combatSystem.advanceTurn(world);
+                        }
+                        this.keys.clear();
+                        return;
                 }
             }
+        }
 
-            // --- Normal Input (movement, menus, etc.) ---
-            // Movement works both in and out of combat
-            let action = null;
-            switch (key) {
-                case 'w': action = new ActionComponent('move', { dx: 0, dy: -1 }); break;
-                case 'a': action = new ActionComponent('move', { dx: -1, dy: 0 }); break;
-                case 's': action = new ActionComponent('move', { dx: 0, dy: 1 }); break;
-                case 'd': action = new ActionComponent('move', { dx: 1, dy: 0 }); break;
-                case ' ':
-                    if (!inCombat) {
-                        action = new ActionComponent('activate');
-                    }
-                    break;
-                case 'i':
-                    if (inCombat) {
-                        world.addComponent(player.id, new MessageComponent("Can't access inventory during combat!", 'red'));
-                    } else {
-                        SCRIPT_REGISTRY['openInventoryMenu'](world.game, player);
-                    }
-                    break;
-                case 'c':
-                    // Allow opening character/equipment screen in combat (read-only)
-                    MENU_ACTIONS['view_equipment'](world.game);
-                    break;
-            }
+        // --- Normal Input (movement, menus, etc.) ---
+        // Movement works both in and out of combat
+        let action = null;
+        switch (key) {
+            case 'w': action = new ActionComponent('move', { dx: 0, dy: -1 }); break;
+            case 'a': action = new ActionComponent('move', { dx: -1, dy: 0 }); break;
+            case 's': action = new ActionComponent('move', { dx: 0, dy: 1 }); break;
+            case 'd': action = new ActionComponent('move', { dx: 1, dy: 0 }); break;
+            case ' ':
+                if (!inCombat) {
+                    action = new ActionComponent('activate');
+                }
+                break;
+            case 'p':
+                // Manual save
+                saveShipState(world);
+                world.addComponent(player.id, new MessageComponent('Game saved', 'green'));
+                break;
+            case 'i':
+                if (inCombat) {
+                    world.addComponent(player.id, new MessageComponent("Can't access inventory during combat!", 'red'));
+                } else {
+                    SCRIPT_REGISTRY['openInventoryMenu'](world.game, player);
+                }
+                break;
+            case 'c':
+                // Allow opening character/equipment screen in combat (read-only)
+                MENU_ACTIONS['view_equipment'](world.game);
+                break;
+        }
 
-            if (action) {
-                world.addComponent(player.id, action);
-            }
+        if (action) {
+            world.addComponent(player.id, action);
         }
 
         // Clear only the action keys, not the alt key state

@@ -9,7 +9,7 @@ class CombatAISystem extends System {
     processAITurn(world, enemyEntity, combatSession) {
         const ai = enemyEntity.getComponent('AIComponent');
         const enemyPos = enemyEntity.getComponent('PositionComponent');
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         if (!player) return;
 
         const playerPos = player.getComponent('PositionComponent');

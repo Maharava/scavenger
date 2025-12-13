@@ -208,7 +208,7 @@ skills.repair = 3
 ### Death System
 - No distinction between "ship inventory" and "expedition inventory" - all items lost
   - Future: Could save ship inventory before expedition, restore on death
-- Enemy corpses don't spawn (player death works, enemy death TODO)
+- ✅ Enemy corpses spawn with loot (fully implemented)
 - 3-second delay may feel too short to read full message
 
 ---
@@ -230,6 +230,208 @@ skills.repair = 3
 - ✅ Player returns to ship automatically
 - ✅ Health restored to 50% all parts
 - ✅ Combat exits cleanly on death
+
+---
+
+## 🏗️ SHIP BUILDING SYSTEM TESTING
+
+### Overview
+The ship building system allows you to construct interactable items on your ship using materials. You access the system via the Bridge Console, select buildable items, and place them using a cursor-based placement mode.
+
+### How the System Works
+1. **Bridge Console:** Main interface at position (5,1) on the ship
+2. **Buildables Menu:** Shows available items with material costs
+3. **Placement Mode:** WASD cursor movement with green/red validation
+4. **Resource System:** Checks both player inventory and ship cargo
+
+### Buildable Items
+Currently available:
+- **Hydroponics Bay:** Requires Polymer Resin x3, Basic Electronics x2, Organic Protein x1
+  - Grows food from seeds over time
+  - Requires water to operate
+  - Same functionality as expedition Hydroponics Bay
+
+### How to Test
+
+#### Test 1: Access Bridge Console
+1. Start a new game (or clear localStorage: `clearShipState()` in console)
+2. Move to the Bridge Console at position (5,1) on the ship
+3. Press Space to interact
+4. **Expected:**
+   - Menu appears with "Build Interactable" option
+   - "Build Ship Upgrade (Coming Soon)" option visible
+   - "Close" option available
+
+#### Test 2: View Buildables Menu
+1. Select "Build Interactable" with Space
+2. **Expected:**
+   - Menu changes to list available buildables
+   - Currently shows "Hydroponics Bay"
+   - Navigation with W/S keys works
+   - Press D to view details
+
+#### Test 3: Check Material Requirements
+1. In Buildables menu, press D to view Hydroponics Bay details
+2. **Expected:**
+   - Details pane shows on right side
+   - Lists all required materials:
+     - Polymer Resin x3
+     - Basic Electronics x2
+     - Organic Protein x1
+   - Each material shows ✓ or ✗ based on availability
+   - Combined count from player + ship cargo shown
+   - Green indicator if you have enough total resources
+
+#### Test 4: Enter Placement Mode
+1. With Hydroponics Bay details visible and materials available
+2. Press Space to enter placement mode
+3. **Expected:**
+   - Placement cursor appears at Bridge Console position
+   - Cursor shows 'H' character
+   - Cursor flashes every 500ms (visible/invisible)
+   - Cursor is GREEN (valid placement location)
+
+#### Test 5: Cursor Movement & Validation
+1. In placement mode, use WASD to move cursor
+2. Try moving into walls ('+' characters)
+3. Move to different floor tiles ('.')
+4. **Expected:**
+   - W/A/S/D moves cursor up/left/down/right
+   - Cursor CANNOT move through walls (blocked)
+   - Cursor stays within map bounds (clamped to edges)
+   - Cursor is GREEN on valid floor tiles
+   - Cursor turns RED on invalid locations (occupied tiles, etc.)
+
+#### Test 6: Confirm Placement
+1. Position cursor on a valid floor tile (green cursor)
+2. Press Space to confirm
+3. **Expected:**
+   - Confirmation dialog appears
+   - Shows "Place Hydroponics Bay here?"
+   - Options: "Yes" and "No"
+   - Navigate with W/S, confirm with Space
+
+#### Test 7: Successful Placement
+1. In confirmation dialog, select "Yes" and press Space
+2. **Expected:**
+   - Green success message: "Hydroponics Bay placed successfully!"
+   - Materials deducted from inventory (player first, then ship)
+   - New Hydroponics Bay entity appears on ship at cursor position
+   - Character 'H' in green color
+   - Can interact with it like normal Hydroponics Bay
+   - Placement mode exits, returns to game
+
+#### Test 8: Cancel Placement
+1. Enter placement mode again
+2. Press Escape key
+3. **Expected:**
+   - Yellow message: "Placement cancelled."
+   - Placement mode exits
+   - No materials consumed
+   - Returns to normal game mode
+
+#### Test 9: Insufficient Materials
+1. Use console to clear inventory/ship cargo
+2. Access Bridge Console → Build Interactable → Hydroponics Bay
+3. Press D to view details
+4. **Expected:**
+   - Materials show ✗ (red X) next to items you don't have
+   - Space bar does NOT enter placement mode
+   - Pressing Space just selects the menu option (no action)
+
+#### Test 10: Resource Deduction Priority
+1. Set up test materials:
+   ```javascript
+   // Player has 2 Polymer Resin, Ship has 1 Polymer Resin
+   // Player has 0 Basic Electronics, Ship has 2 Basic Electronics
+   // Player has 1 Organic Protein, Ship has 0 Organic Protein
+   ```
+2. Build Hydroponics Bay
+3. After placement, check inventories
+4. **Expected:**
+   - Polymer Resin: Player loses 2, Ship loses 1 (player first)
+   - Basic Electronics: Ship loses 2 (only source)
+   - Organic Protein: Player loses 1 (only source)
+   - Total deducted correctly: 3, 2, 1
+
+### Console Testing Commands
+
+```javascript
+// Check current test materials (added automatically on first load)
+player = world.query(['PlayerComponent'])[0]
+inventory = player.getComponent('InventoryComponent')
+for (let [name, data] of inventory.items) {
+    console.log(`Player: ${name} x${data.quantity}`)
+}
+
+ship = world.query(['ShipComponent'])[0]
+shipComp = ship.getComponent('ShipComponent')
+for (let [name, data] of shipComp.cargo) {
+    console.log(`Ship: ${name} x${data.quantity}`)
+}
+
+// Add materials manually
+function addMaterialToPlayer(materialId, quantity) {
+    const materialDef = MATERIAL_DATA[materialId]
+    const inventory = player.getComponent('InventoryComponent')
+
+    const materialEntity = world.createEntity()
+    world.addComponent(materialEntity, new ItemComponent(materialDef.name, materialDef.description || '', materialDef.weight || 0, 0.5))
+    world.addComponent(materialEntity, new NameComponent(materialDef.name))
+    world.addComponent(materialEntity, new StackableComponent(1, 99))
+
+    inventory.items.set(materialDef.name, { entityId: materialEntity, quantity: quantity })
+}
+
+function addMaterialToShip(materialId, quantity) {
+    const materialDef = MATERIAL_DATA[materialId]
+    const shipComp = ship.getComponent('ShipComponent')
+
+    const materialEntity = world.createEntity()
+    world.addComponent(materialEntity, new ItemComponent(materialDef.name, materialDef.description || '', materialDef.weight || 0, 0.5))
+    world.addComponent(materialEntity, new NameComponent(materialDef.name))
+    world.addComponent(materialEntity, new StackableComponent(1, 99))
+
+    shipComp.cargo.set(materialDef.name, { entityId: materialEntity, quantity: quantity })
+}
+
+// Usage:
+addMaterialToPlayer('POLYMER_RESIN', 5)
+addMaterialToShip('BASIC_ELECTRONICS', 3)
+
+// Clear all materials
+inventory.items.clear()
+shipComp.cargo.clear()
+
+// Reset to default test materials (requires reload)
+clearShipState()  // Then reload page
+```
+
+### Initial Test Setup
+
+On first load (no save file), the game automatically provides:
+- **Player Inventory:** Polymer Resin x2, Organic Protein x1
+- **Ship Cargo:** Polymer Resin x1, Basic Electronics x2
+
+This gives exactly enough to build 1 Hydroponics Bay (3+2+1).
+
+---
+
+## ✅ SUCCESS CRITERIA
+
+**Ship Building System Working If:**
+- ✅ Bridge Console is interactable on ship at (5,1)
+- ✅ "Build Interactable" menu shows buildables list
+- ✅ Buildable details show material costs with ✓/✗ indicators
+- ✅ Combined resource checking (player + ship) works correctly
+- ✅ Placement mode activates when materials available
+- ✅ Cursor flashes green/red based on validity
+- ✅ WASD moves cursor, blocked by walls
+- ✅ Escape cancels placement
+- ✅ Space confirms placement (with confirmation dialog)
+- ✅ Resources deducted from correct inventories (player first)
+- ✅ Hydroponics Bay placed and fully functional
+- ✅ Can build multiple items (if materials available)
 
 ---
 

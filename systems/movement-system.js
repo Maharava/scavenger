@@ -112,12 +112,51 @@ class MovementSystem extends System {
             }
         }
 
-        // 3. Armor penalty (future implementation - heavy armor)
-        // TODO: Add armor weight penalty
+        // 3. Armor penalty - heavy armor reduces movement
+        const equipped = entity.getComponent('EquippedItemsComponent');
+        if (equipped && equipped.body) {
+            const armorEntity = world.getEntity(equipped.body);
+            if (armorEntity) {
+                // Calculate total armor weight including all attached parts
+                let totalArmorWeight = 0;
 
-        // 4. Temperature zone penalty (applies when temperature system is active)
-        // TODO: Get temperature zone from TemperatureSystem when implemented
-        const tempZone = world.tempZone || 'comfortable'; // Default comfortable
+                // Add armor frame weight
+                const armorItem = armorEntity.getComponent('ItemComponent');
+                if (armorItem) {
+                    totalArmorWeight += armorItem.weight;
+                }
+
+                // Add attached parts weight
+                const attachments = armorEntity.getComponent('AttachmentSlotsComponent');
+                if (attachments) {
+                    for (const slotName in attachments.slots) {
+                        const slot = attachments.slots[slotName];
+                        if (slot.entity_id) {
+                            const partEntity = world.getEntity(slot.entity_id);
+                            if (partEntity) {
+                                const partItem = partEntity.getComponent('ItemComponent');
+                                if (partItem) {
+                                    totalArmorWeight += partItem.weight;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Apply movement penalty based on armor weight
+                // Light armor (< 2000g): no penalty
+                // Medium armor (2000-3000g): -1 movement
+                // Heavy armor (> 3000g): -2 movement
+                if (totalArmorWeight >= 3000) {
+                    movementMax -= 2;
+                } else if (totalArmorWeight >= 2000) {
+                    movementMax -= 1;
+                }
+            }
+        }
+
+        // 4. Temperature zone penalty (from TemperatureSystem)
+        const tempZone = world.tempZone || 'comfortable';
         if (tempZone === 'harsh') {
             movementMax -= 1; // -1 movement in harsh conditions
         } else if (tempZone === 'extreme') {

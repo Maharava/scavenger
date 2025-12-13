@@ -76,10 +76,21 @@ const ITEM_DATA = [
         "itemType": "resource",
         "script": "pickupItem",
         "scriptArgs": {}
+    },
+    {
+        "id": "FUEL_CANISTER",
+        "name": "Fuel Canister",
+        "char": "◙",
+        "colour": "#ff4500",
+        "solid": false,
+        "weight": 2500,
+        "slots": 1.0,
+        "itemType": "resource",
+        "script": "pickupItem",
+        "scriptArgs": {}
     }
 
     // Future items can be added here:
-    // - Fuel canisters
     // - Recipe ingredients
     // - Consumable resources
 ];

@@ -464,72 +464,260 @@ function spawnEnemies(state, enableEnemies = false) {
     // Currently disabled as requested by user
 }
 
-// Phase 6: Loot Spawning
-function selectLoot(roomType, rarity, rng) {
-    const pool = roomType.loot[rarity];
-    if (!pool || pool.length === 0) return null;
-    return rng.choice(pool);
+// Phase 6: Tag-Based Loot Spawning
+
+// Helper: Get all items from all data sources that have a specific tag
+function getAllItemsByTag(tag) {
+    const results = [];
+
+    // Search materials
+    if (typeof MATERIAL_DATA !== 'undefined') {
+        for (const [id, data] of Object.entries(MATERIAL_DATA)) {
+            if (data.tags && data.tags.includes(tag)) {
+                results.push(id);
+            }
+        }
+    }
+
+    // Search food
+    if (typeof FOOD_DATA !== 'undefined') {
+        for (const food of FOOD_DATA) {
+            if (food.tags && food.tags.includes(tag)) {
+                results.push(food.id);
+            }
+        }
+    }
+
+    // Search equipment
+    if (typeof EQUIPMENT_DATA !== 'undefined') {
+        for (const equip of EQUIPMENT_DATA) {
+            if (equip.tags && equip.tags.includes(tag)) {
+                results.push(equip.id);
+            }
+        }
+    }
+
+    // Search tools
+    if (typeof TOOL_DATA !== 'undefined') {
+        for (const [id, data] of Object.entries(TOOL_DATA)) {
+            if (data.tags && data.tags.includes(tag)) {
+                results.push(id);
+            }
+        }
+    }
+
+    return results;
 }
 
-function spawnLoot(state) {
+// Helper: Select item from weighted tag list
+function selectItemFromTags(tagConfig, rng) {
+    const { tags, weights } = tagConfig;
+
+    // Build weighted tag list
+    const tagList = [];
+    for (const tag of tags) {
+        const weight = weights[tag] || 1;
+        for (let i = 0; i < weight; i++) {
+            tagList.push(tag);
+        }
+    }
+
+    if (tagList.length === 0) return null;
+
+    // Select random tag
+    const selectedTag = rng.choice(tagList);
+
+    // Get all items with that tag
+    const items = getAllItemsByTag(selectedTag);
+
+    if (items.length === 0) return null;
+
+    // Return random item
+    return rng.choice(items);
+}
+
+// Helper: Filter node types by biomes
+function filterNodesByBiome(biomes) {
+    if (typeof NODE_TYPES === 'undefined') return [];
+
+    const compatible = [];
+    for (const [id, nodeType] of Object.entries(NODE_TYPES)) {
+        if (nodeType.biomes && nodeType.biomes.some(b => biomes.includes(b))) {
+            compatible.push(nodeType);
+        }
+    }
+    return compatible;
+}
+
+// Helper: Get unoccupied floor tiles
+function getUnoccupiedFloorTiles(room) {
+    return room.floorTiles.filter(tile =>
+        !room.entities.some(e => e.x === tile.x && e.y === tile.y)
+    );
+}
+
+// Spawn scavenge nodes in rooms
+function spawnScavengeNodes(state) {
+    // Safety check: ensure LOOT_TABLES is loaded
+    if (typeof LOOT_TABLES === 'undefined') {
+        console.warn('LOOT_TABLES not loaded - scavenge nodes will not spawn');
+        return;
+    }
+
     for (const room of state.rooms) {
-        const roomType = room.roomData;
+        const roomData = room.roomData;
+        const biomes = roomData.biomes || ['ATMOSPHERIC'];
 
-        // 1. Check if this is atmospheric room (low loot)
-        if (state.rng.random() < state.location.atmosphericRoomChance) {
-            // Atmospheric room: 0-1 items only
-            if (state.rng.random() < 0.3) {
-                const item = selectLoot(roomType, 'common', state.rng);
-                if (item) {
-                    const pos = state.rng.choice(room.floorTiles);
-                    room.entities.push({ id: item, x: pos.x, y: pos.y });
-                }
-            }
-            continue;
-        }
+        // Get biome's loot table
+        const lootTable = LOOT_TABLES[biomes[0]] || LOOT_TABLES['ATMOSPHERIC'];
 
-        // 2. Determine item count based on difficulty
-        let itemCount;
-        if (roomType.difficulty === 'EASY') {
-            itemCount = state.rng.randInt(1, 3);
-        } else if (roomType.difficulty === 'MEDIUM') {
-            itemCount = state.rng.randInt(2, 5);
+        // Calculate node count (1-3 based on difficulty)
+        let nodeCount;
+        if (state.location.difficulty === 'EASY') {
+            nodeCount = 1;
+        } else if (state.location.difficulty === 'MEDIUM') {
+            nodeCount = state.rng.random() < 0.5 ? 1 : 2;
         } else {  // HARD
-            itemCount = state.rng.randInt(4, 8);
+            nodeCount = state.rng.random() < 0.3 ? 1 : 2;
         }
 
-        // 3. Spawn guaranteed items first
-        if (roomType.guaranteedLoot) {
-            for (const item of roomType.guaranteedLoot) {
-                if (room.floorTiles.length > room.entities.length) {
-                    const pos = state.rng.choice(room.floorTiles);
-                    room.entities.push({ id: item, x: pos.x, y: pos.y });
-                }
+        // Filter compatible node types for this biome
+        const compatibleNodes = filterNodesByBiome(biomes);
+        if (compatibleNodes.length === 0) continue;
+
+        // Build weighted node list
+        const nodeList = [];
+        for (const nodeType of compatibleNodes) {
+            const weight = nodeType.spawnWeight || 1;
+            for (let i = 0; i < weight; i++) {
+                nodeList.push(nodeType);
             }
         }
 
-        // 4. Spawn random items
-        for (let i = 0; i < itemCount && room.floorTiles.length > room.entities.length; i++) {
-            // Roll rarity tier
-            const roll = state.rng.random();
+        // Spawn nodes
+        for (let i = 0; i < nodeCount; i++) {
+            const availableTiles = getUnoccupiedFloorTiles(room);
+            if (availableTiles.length === 0) break;
+
+            // Select node type
+            const nodeType = state.rng.choice(nodeList);
+            const pos = state.rng.choice(availableTiles);
+
+            // Determine rarity distribution
+            const rarityRoll = state.rng.random();
+            const rarityDist = lootTable.rarityDistribution || { common: 0.60, uncommon: 0.30, rare: 0.10 };
             let rarity;
-            if (roll < 0.60) rarity = 'common';
-            else if (roll < 0.90) rarity = 'uncommon';
-            else rarity = 'rare';
+            if (rarityRoll < rarityDist.common) {
+                rarity = 'common';
+            } else if (rarityRoll < rarityDist.common + rarityDist.uncommon) {
+                rarity = 'uncommon';
+            } else {
+                rarity = 'rare';
+            }
 
-            const item = selectLoot(roomType, rarity, state.rng);
-            if (item) {
-                // Pick unoccupied floor tile
-                const availableTiles = room.floorTiles.filter(tile =>
-                    !room.entities.some(e => e.x === tile.x && e.y === tile.y)
-                );
+            // Generate loot for this node
+            const lootConfig = lootTable.nodes[rarity];
+            const lootSlots = state.rng.randInt(nodeType.lootSlots.min, nodeType.lootSlots.max);
+            const lootItems = [];
 
-                if (availableTiles.length > 0) {
-                    const pos = state.rng.choice(availableTiles);
-                    room.entities.push({ id: item, x: pos.x, y: pos.y });
+            for (let j = 0; j < lootSlots; j++) {
+                const item = selectItemFromTags(lootConfig, state.rng);
+                if (item) {
+                    lootItems.push(item);
                 }
             }
+
+            // Create scavenge node entity
+            room.entities.push({
+                type: 'scavenge_node',
+                nodeTypeId: nodeType.id,
+                lootItems: lootItems,
+                x: pos.x,
+                y: pos.y
+            });
         }
+    }
+}
+
+// Spawn floor loot in rooms
+function spawnFloorLoot(state) {
+    // Safety check: ensure LOOT_TABLES is loaded
+    if (typeof LOOT_TABLES === 'undefined') {
+        console.warn('LOOT_TABLES not loaded - floor loot will not spawn');
+        return;
+    }
+
+    for (const room of state.rooms) {
+        const roomData = room.roomData;
+        const biomes = roomData.biomes || ['ATMOSPHERIC'];
+
+        // Get biome's loot table
+        const lootTable = LOOT_TABLES[biomes[0]] || LOOT_TABLES['ATMOSPHERIC'];
+
+        // Calculate floor loot budget (1-4 items based on room size and difficulty)
+        const tileCount = room.floorTiles.length;
+        let budgetPct;
+        if (state.location.difficulty === 'EASY') {
+            budgetPct = 0.01;  // 1% of tiles
+        } else if (state.location.difficulty === 'MEDIUM') {
+            budgetPct = 0.015; // 1.5% of tiles
+        } else {  // HARD
+            budgetPct = 0.02;  // 2% of tiles
+        }
+
+        // Apply biome density multiplier
+        const densityMult = lootTable.floor.densityMultiplier || 1.0;
+        let itemCount = Math.floor(tileCount * budgetPct * densityMult);
+        itemCount = Math.max(1, Math.min(4, itemCount)); // Clamp 1-4
+
+        // Spawn floor items
+        for (let i = 0; i < itemCount; i++) {
+            const availableTiles = getUnoccupiedFloorTiles(room);
+            if (availableTiles.length === 0) break;
+
+            const item = selectItemFromTags(lootTable.floor.items, state.rng);
+            if (item) {
+                const pos = state.rng.choice(availableTiles);
+
+                // Determine stack size for floor loot (1-3)
+                const stackSize = state.rng.randInt(1, 3);
+
+                room.entities.push({
+                    type: 'floor_loot',
+                    id: item,
+                    stackSize: stackSize,
+                    x: pos.x,
+                    y: pos.y
+                });
+            }
+        }
+    }
+}
+
+// Spawn drop chutes (rare, max 3 per map)
+function spawnDropChutes(state) {
+    const maxChutes = 3;
+    const spawnChance = 0.3; // 30% chance per room
+
+    let chutesSpawned = 0;
+
+    for (const room of state.rooms) {
+        if (chutesSpawned >= maxChutes) break;
+        if (state.rng.random() > spawnChance) continue;
+
+        const availableTiles = getUnoccupiedFloorTiles(room);
+        if (availableTiles.length === 0) continue;
+
+        const pos = state.rng.choice(availableTiles);
+
+        room.entities.push({
+            type: 'interactable',
+            interactableId: 'DROP_CHUTE',
+            x: pos.x,
+            y: pos.y
+        });
+
+        chutesSpawned++;
     }
 }
 
@@ -681,8 +869,10 @@ function generateExpeditionMap(locationId, seed = Date.now(), enableEnemies = fa
     // Phase 5: Spawn enemies (disabled for testing)
     spawnEnemies(state, enableEnemies);
 
-    // Phase 6: Spawn loot
-    spawnLoot(state);
+    // Phase 6: Spawn scavenge nodes and floor loot
+    spawnScavengeNodes(state);
+    spawnFloorLoot(state);
+    spawnDropChutes(state);
 
     // Phase 7: Determine player spawn
     determinePlayerSpawn(state);

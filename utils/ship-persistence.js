@@ -175,7 +175,7 @@ function deserializeInventory(world, player, data) {
     // For a full implementation, items should be looked up by name in INTERACTABLE_DATA
     for (const itemData of data.items) {
         const itemEntity = world.createEntity();
-        world.addComponent(itemEntity.id, new ItemComponent(
+        world.addComponent(itemEntity, new ItemComponent(
             itemData.name,
             itemData.description || '',
             itemData.weight || 0,
@@ -184,7 +184,7 @@ function deserializeInventory(world, player, data) {
 
         // Add to inventory (simplified - assumes stackable behavior based on item name)
         inventory.items.set(itemData.key, {
-            entityId: itemEntity.id,
+            entityId: itemEntity,
             quantity: itemData.quantity
         });
     }
@@ -252,14 +252,36 @@ function deserializeSkills(world, player, data) {
 
 function serializeShipResources(world) {
     const shipEntities = world.query(['ShipComponent']);
-    if (shipEntities.length === 0) return { water: 100, fuel: 100 };
+    if (shipEntities.length === 0) return { water: 100, fuel: 100, cargoCapacity: 20, cargo: [] };
 
     const ship = shipEntities[0].getComponent('ShipComponent');
+
+    // Serialize cargo inventory
+    const cargoItems = [];
+    for (const [itemKey, itemData] of ship.cargo) {
+        const itemEntity = world.getEntity(itemData.entityId);
+        if (!itemEntity) continue;
+
+        const itemComponent = itemEntity.getComponent('ItemComponent');
+        if (!itemComponent) continue;
+
+        cargoItems.push({
+            key: itemKey,
+            name: itemComponent.name,
+            quantity: itemData.quantity,
+            weight: itemComponent.weight,
+            slots: itemComponent.slots,
+            description: itemComponent.description
+        });
+    }
+
     return {
         water: ship.water,
         fuel: ship.fuel,
         maxWater: ship.maxWater,
-        maxFuel: ship.maxFuel
+        maxFuel: ship.maxFuel,
+        cargoCapacity: ship.cargoCapacity,
+        cargo: cargoItems
     };
 }
 
@@ -272,6 +294,28 @@ function deserializeShipResources(world, data) {
     ship.fuel = data.fuel;
     if (data.maxWater) ship.maxWater = data.maxWater;
     if (data.maxFuel) ship.maxFuel = data.maxFuel;
+    if (data.cargoCapacity) ship.cargoCapacity = data.cargoCapacity;
+
+    // Restore cargo inventory
+    ship.cargo.clear();
+    if (data.cargo && Array.isArray(data.cargo)) {
+        for (const itemData of data.cargo) {
+            const itemEntity = world.createEntity();
+            world.addComponent(itemEntity, new ItemComponent(
+                itemData.name,
+                itemData.description || '',
+                itemData.weight || 0,
+                itemData.slots || 1.0
+            ));
+
+            // Add to cargo
+            ship.cargo.set(itemData.key, {
+                entityId: itemEntity,
+                quantity: itemData.quantity
+            });
+        }
+        console.log(`Restored ${data.cargo.length} items to ship cargo`);
+    }
 }
 
 function serializeTime(world, player) {

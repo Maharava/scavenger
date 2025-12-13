@@ -44,6 +44,7 @@ class TemperatureSystem extends System {
         if (zone !== this.lastTemperatureZone) {
             this.timeInCurrentZone = 0;
             this.lastTemperatureZone = zone;
+            this.lastDamageTime = 0; // Reset damage timer on zone change
             this.showZoneChangeMessage(world, player, zone, currentTemp);
         } else {
             this.timeInCurrentZone += this.checkInterval / 1000; // Convert to seconds
@@ -88,38 +89,24 @@ class TemperatureSystem extends System {
 
     // Apply temperature effects
     applyTemperatureEffects(world, player, stats, zone, currentTemp) {
-        const comfortModifiers = player.getComponent('ComfortModifiersComponent');
-        if (!comfortModifiers) return;
-
-        // Remove old temperature modifiers
-        comfortModifiers.modifiers = comfortModifiers.modifiers.filter(m => m.id !== 'temperature');
+        // Comfort penalties are now handled by ComfortSystem reading world.tempZone
+        // This method only handles stress increases and damage
 
         switch (zone) {
             case 'comfortable':
-                // No penalties, remove any existing temperature modifiers
+                // No stress or damage in comfortable zone
                 break;
 
             case 'harsh':
-                // Comfort penalty: -10
-                // Stress increase: +5 every 5 seconds
-                stats.baseComfort = Math.max(0, stats.baseComfort - 10);
-
-                if (this.timeInCurrentZone % 5 < (this.checkInterval / 1000)) {
-                    stats.stress = Math.min(100, stats.stress + 5);
-                }
+                // Stress increase: +5 every 5 seconds (checkInterval)
+                stats.stress = Math.min(100, stats.stress + 5);
                 break;
 
             case 'extreme':
-                // Comfort penalty: -25
-                // Stress increase: +10 every 5 seconds
+                // Stress increase: +10 every 5 seconds (checkInterval)
+                stats.stress = Math.min(100, stats.stress + 10);
+
                 // Body part damage: Apply every 30 seconds
-                stats.baseComfort = Math.max(0, stats.baseComfort - 25);
-
-                if (this.timeInCurrentZone % 5 < (this.checkInterval / 1000)) {
-                    stats.stress = Math.min(100, stats.stress + 10);
-                }
-
-                // Apply damage every 30 seconds
                 if (this.timeInCurrentZone >= this.damageInterval &&
                     (this.timeInCurrentZone - this.lastDamageTime) >= this.damageInterval) {
                     this.applyTemperatureDamage(world, player, currentTemp);

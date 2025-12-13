@@ -126,6 +126,80 @@ class World {
     isSolidTile(x, y) {
         return this.solidTileCache.has(`${x},${y}`);
     }
+
+    // === Convenience Methods ===
+    // These methods reduce code duplication and improve readability
+
+    /**
+     * Get the player entity.
+     * @returns {Entity|null} The player entity, or null if not found
+     */
+    getPlayer() {
+        const players = this.query(['PlayerComponent']);
+        return players.length > 0 ? players[0] : null;
+    }
+
+    /**
+     * Get the ship entity.
+     * @returns {Entity|null} The ship entity, or null if not found
+     */
+    getShip() {
+        const ships = this.query(['ShipComponent']);
+        return ships.length > 0 ? ships[0] : null;
+    }
+
+    /**
+     * Get a system by its class constructor.
+     * @param {Function} SystemClass - The system class constructor
+     * @returns {System|null} The system instance, or null if not found
+     */
+    getSystem(SystemClass) {
+        return this.systems.find(s => s instanceof SystemClass) || null;
+    }
+
+    /**
+     * Find an item definition across all data sources.
+     * Searches in order: INTERACTABLE_DATA, EQUIPMENT_DATA, TOOL_DATA, MATERIAL_DATA, FOOD_DATA, ITEM_DATA
+     * @param {string} itemId - The item ID to search for
+     * @returns {object|null} The item definition, or null if not found
+     */
+    findItemDefinition(itemId) {
+        // Check INTERACTABLE_DATA
+        if (typeof INTERACTABLE_DATA !== 'undefined') {
+            const def = INTERACTABLE_DATA.find(i => i.id === itemId);
+            if (def) return def;
+        }
+
+        // Check EQUIPMENT_DATA
+        if (typeof EQUIPMENT_DATA !== 'undefined') {
+            const def = EQUIPMENT_DATA.find(i => i.id === itemId);
+            if (def) return def;
+        }
+
+        // Check TOOL_DATA
+        if (typeof TOOL_DATA !== 'undefined' && TOOL_DATA[itemId]) {
+            return TOOL_DATA[itemId];
+        }
+
+        // Check MATERIAL_DATA
+        if (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[itemId]) {
+            return MATERIAL_DATA[itemId];
+        }
+
+        // Check FOOD_DATA
+        if (typeof FOOD_DATA !== 'undefined') {
+            const def = FOOD_DATA.find(i => i.id === itemId);
+            if (def) return def;
+        }
+
+        // Check ITEM_DATA
+        if (typeof ITEM_DATA !== 'undefined') {
+            const def = ITEM_DATA.find(i => i.id === itemId);
+            if (def) return def;
+        }
+
+        return null;
+    }
 }
 
 /**

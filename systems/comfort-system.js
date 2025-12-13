@@ -57,7 +57,13 @@ class ComfortSystem extends System {
                 baseComfort += 10;
             }
 
-            // 4. Temperature modifier (applied by TemperatureSystem - baseComfort already modified)
+            // 4. Temperature modifier (read from TemperatureSystem)
+            const tempZone = world.tempZone || 'comfortable';
+            if (tempZone === 'harsh') {
+                baseComfort -= 10;
+            } else if (tempZone === 'extreme') {
+                baseComfort -= 25;
+            }
 
             // Store base comfort for reference
             stats.baseComfort = baseComfort;

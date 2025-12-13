@@ -221,7 +221,7 @@ class ActionResolutionSystem extends System {
 
         // First strike bonus (player only, first turn only)
         if (attacker.hasComponent('PlayerComponent')) {
-            const combatSystem = world.systems.find(s => s.constructor.name === 'CombatSystem');
+            const combatSystem = world.getSystem(CombatSystem);
             if (combatSystem && combatSystem.activeCombatSession &&
                 combatSystem.activeCombatSession.playerInitiated &&
                 !combatSystem.activeCombatSession.firstStrikeBonusUsed) {
@@ -263,10 +263,8 @@ class ActionResolutionSystem extends System {
             }
         }
 
-        // Temperature zone penalties (applies when temperature system is active)
-        // TODO: Get temperature zone from TemperatureSystem when implemented
-        // For now, this is a placeholder that will activate when tempZone is set
-        const tempZone = world.tempZone || 'comfortable'; // Default comfortable
+        // Temperature zone penalties (from TemperatureSystem)
+        const tempZone = world.tempZone || 'comfortable';
         if (tempZone === 'harsh') {
             accuracy -= 10;
             modifiers.temperature = -10;

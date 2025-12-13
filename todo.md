@@ -1,125 +1,179 @@
-# Scavenger - Future Features To-Do
+# Scavenger - Development To-Do
 
-This document tracks planned features that are not yet implemented.
+**Last Updated:** December 2024
+
+> **Note:** This document tracks **currently in-progress** items only. For comprehensive future ideas and planned features, see **`docs/FUTURE_IDEAS.md`**.
 
 ---
 
-## Temperature System
+## ✅ RECENTLY COMPLETED (December 2024)
 
-**Status:** Not Implemented
+- [x] Temperature System (comfort, stress, damage)
+- [x] Death/Permadeath System (skill regression, return to ship)
+- [x] Ship Cargo Hold (20 slots, expandable)
+- [x] Producer integration with ship cargo
+- [x] Enemy corpse spawning and loot drops
+- [x] Enemy weapon/armor loadout system
+- [x] Recycler system for breaking down modules
+- [x] Food consumption system (eat to restore hunger)
+- [x] Building system (6 buildables via Bridge Console)
+- [x] Technical debt cleanup:
+  - Added world.getPlayer() and world.getShip() convenience methods
+  - Added world.getSystem(SystemClass) for type-safe system access
+  - Added world.findItemDefinition(itemId) centralized item lookup
+  - Replaced 70+ duplicate player queries throughout codebase
+  - Replaced 15+ fragile string-based system lookups
+  - Organized menu-actions.js and script-registry.js with section comments
+  - Improved documentation accuracy (deleted 4 obsolete docs, updated IMPLEMENTATION_STATUS.md)
+- [x] Documentation audit and cleanup
+
+---
+
+## 🔥 CURRENT PRIORITIES
+
+### 1. Building System (Ship Interactables)
+**Status:** ✅ FULLY IMPLEMENTED
+**Priority:** Complete
+
+Players can build interactables from materials via the Bridge Console!
+
+**Implemented:**
+- [x] Material cost system (`gamedata/buildables.js`)
+- [x] 7 buildable interactables defined with costs
+- [x] Bridge Console building interface
+- [x] Material checking (player inventory + ship cargo)
+- [x] Material consumption on build
+- [x] Placement validation system
+
+**Current Buildables:**
+- Hydroponics Bay, Recycler, Door, Water Tank, Workbench, Ship Cargo, Stove
+
+**Next Steps:**
+- Add more buildables (Shower, Auto-Doc, Life Support, Target Dummy, etc.)
+- See `docs/NEXT_STEPS.md` for detailed roadmap
+
+---
+
+### 2. Cooking System
+**Status:** ✅ FULLY IMPLEMENTED (December 2024)
+**Priority:** Complete
+
+Food consumption and cooking are now fully functional!
+
+**Implemented:**
+- [x] 6 new loot-only ingredients (Protein Paste, Meat Chunk, Nutrient Paste, Voidberry, Luminroot, Crystalfruit)
+- [x] 17 cooking recipes across 5 skill tiers
+- [x] Stove buildable (5 Salvaged Components, 3 Basic Electronics, 3 Polymer Resin)
+- [x] Cooking menu organized by Basic/Intermediate/Advanced categories
+- [x] Ingredient checking from both player inventory and ship cargo
+- [x] Cooking skill progression via `hasCookedToday` trigger
+- [x] Meal effects: hunger + comfort/stress/rest bonuses
+- [x] Batch cooking (x1 or x5 if enough ingredients)
+
+**Recipe Tiers:**
+- Tier 1 (Skill 1): 4 basic recipes using common ingredients
+- Tier 2 (Skill 2): 4 recipes including soups/smoothies
+- Tier 3 (Skill 3): 3 recipes with alien ingredients
+- Tier 4 (Skill 4): 3 gourmet recipes with special effects
+- Tier 5 (Skill 5): 3 master recipes with powerful effects
+
+---
+
+### 3. Scavenging Points
+**Status:** ✅ Fully Implemented
 **Priority:** Medium
-**Design Doc:** `docs/temperature_system.md`
 
-### Overview
-Environmental temperature affects player comfort, stats, and can cause damage or death in extreme conditions.
+Expeditions now feature a complete scavenge node system with contextual loot.
 
-### Core Mechanics Needed
-- [ ] Temperature zones (Comfortable / Harsh / Extreme)
-- [ ] Temperature-based comfort/stress modifiers
-- [ ] Body part damage from extreme temperatures
-  - Cold: Prioritizes limbs (70%), torso (20%), head (10%)
-  - Heat: Prioritizes head (35%), torso (50%), limbs (15%)
-- [ ] Recovery mechanics when returning to comfortable temperature
-- [ ] Armor integration (tempMin/tempMax modifiers already in place)
-- [ ] Warning messages at 70% and 90% stress
-- [ ] Death at 100% stress or 0% body part efficiency
-
-### Implementation Requirements
-1. Create `systems/temperature-system.js`
-2. Update frequency: Check every 5 seconds, apply damage every 60 seconds
-3. Integrate with armor stats (tempMin/tempMax already calculated)
-4. Add HUD indicators for temperature zones
-5. Add visual effects (color tints, screen shake for extreme temps)
-
-### Dependencies
-- Armor system (✅ implemented)
-- Body parts system (✅ implemented)
-- Stress/comfort systems (✅ implemented)
+**Completed:**
+- [x] Create container interactables (18 node types defined)
+- [x] Add loot generation system (tag-based with rarity tiers)
+- [x] Spawn containers on expedition maps (biome-aware spawning)
+- [x] Implement search/scavenge interaction (one-time search with visual feedback)
+- [x] Define loot tables by location type (8 biome-specific tables)
 
 ---
 
-## Crafting System
+## 📋 BACKLOG
 
-**Status:** Not Implemented
-**Priority:** High
-**Design Doc:** `docs/crafting_mat.md`
+### Ship Interactables (8/21 implemented)
+**Implemented:**
+- Bed, Ship Cargo, Hydroponics, Water Tank, Airlock, Recycler, Workbench, Stove
 
-### Overview
-Players craft items and modules from scavenged materials at workbenches.
+**Not Implemented:**
+- Shower (comfort/stress recovery)
+- Auto-Doc (advanced healing)
+- Bridge (location selection, travel system)
+- Scanner (discover new locations)
+- Refinery/Bioreactor (biomass to fuel)
+- Water Recycler (passive water reduction)
+- Life Support (passive comfort improvement)
+- Target Dummy (weapon testing)
+- Drop Chute (send items to ship during expedition)
+- Story Nodes (lore delivery)
 
-### Core Mechanics Needed
-- [ ] Material collection system
-  - 25 material types defined (see `docs/crafting_mat.md`)
-  - Rarity: Common / Uncommon / Rare
-  - Source tracking (where materials are found)
-- [ ] Recipe system
-  - Recipe definitions (input materials → output item)
-  - Skill requirements for recipes
-  - Workbench requirement
-- [ ] Material storage
-  - Inventory slots for materials
-  - Stacking mechanics
-  - Weight considerations
-- [ ] Crafting UI
-  - Recipe browser
-  - Material availability display
-  - Craft confirmation
-- [ ] Module crafting
-  - Craft weapon/armor modules
-  - Craft tools and consumables
-  - Upgrade existing items
+### Environmental Hazards
+- Kinetic: Debris drops, piston traps, explosives
+- Energy: Arcing conduits, steam vents
+- Toxin: Chemical spills, spore clouds
+- Radiation: Leaking reactors
 
-### Implementation Requirements
-1. Create `gamedata/materials.js` - Define all material items
-2. Create `gamedata/recipes.js` - Define crafting recipes
-3. Create `systems/crafting-system.js` - Handle crafting logic
-4. Add crafting interface to workbench interaction
-5. Update inventory system to handle material stacking
-6. Add "Craft" menu option to workbench (alongside module swapping)
+### Advanced Combat Features
+- Item usage in combat (medkits, stims) - High priority
+- Advanced AI behaviors (flanking, cover usage)
+- Grenades and throwables
 
-### Material Categories
-**Common:**
-- Salvaged Components, Polymer Resin, Basic Electronics, Raw Biomass
-
-**Uncommon:**
-- Organic Protein, Chemical Compounds, Aramid Fibres, Thermal Gel, Intact Logic Board, Repair Paste
-
-**Rare:**
-- Titanium Alloy, Ceramic-Composite Plate, Focusing Lenses, High-Capacity Battery, Energy-Reflective Film, Caustic Organ, Bio-Woven Chitin, Neuro-conductive Tissue
-
-### Dependencies
-- Workbench system (✅ implemented)
-- Inventory system (✅ implemented)
-- Skill system (✅ implemented)
-- Module system (✅ implemented)
+See `docs/FUTURE_IDEAS.md` for comprehensive list of future features.
 
 ---
 
-## Future Considerations
+## 🐛 KNOWN ISSUES
 
-### Short-term (Next 2-3 Updates)
-1. **Temperature System** - Adds survival challenge to expeditions
-2. **Crafting System** - Core progression mechanic
-3. **More Enemies** - Expand combat variety (see `docs/enemy_imp.md`, `docs/aliens_imp.md`, `docs/aberrants_imp.md`)
+None currently tracked.
 
-### Medium-term (Future Updates)
-1. **Farming/Hydroponics** - Food production on ship
-2. **Repair System** - Fix broken interactables with Repair skill
-3. **Corpse Looting** - Loot equipment from defeated enemies
-4. **Player Death/Respawn** - Return to ship, lose expedition loot
-
-### Long-term (Major Features)
-1. **Full Expedition Loop** - Ship phase → Expedition → Return
-2. **Ship Upgrades** - Spend resources on ship improvements
-3. **Procedural Enemy Spawning** - Enable enemy generation in procgen maps
-4. **Weather/Environmental Events** - Dynamic hazards
-5. **Advanced AI** - Cover usage, flanking, item usage
+**If you find bugs:**
+1. Test with console commands (see `docs/TESTING_NEW_SYSTEMS.md`)
+2. Check browser console for errors
+3. Document reproduction steps
+4. Report with context (what you were doing, expected vs actual behavior)
 
 ---
 
-## Notes
+## 📝 DEVELOPMENT NOTES
 
-- All planned features have design documents in `/docs/`
-- Systems marked with ✅ are fully implemented
-- Priority levels: High / Medium / Low
-- Implementation should follow the "Keep It Simple" philosophy - add minimum complexity for maximum gameplay value
+### Code Quality Improvements (December 2024)
+- Eliminated 70+ duplicate `world.query(['PlayerComponent'])[0]` calls
+- Replaced fragile string-based system lookups with type-safe `world.getSystem()`
+- Centralized item definition lookup in `world.findItemDefinition()`
+- Added comprehensive header comments to combat systems
+- Organized large handler files with section markers
+
+### Gameplay Status
+**Current Playability:** ~80% - Fully playable with complete core loop
+
+The game has a working survival/combat/progression loop:
+- ✅ Survive (eat food, manage stats, sleep, recover)
+- ✅ Fight enemies (rewarding combat with loot drops)
+- ✅ Gather resources (scavenge nodes, enemy loot, materials)
+- ✅ Return to ship (build structures, modify equipment, store items)
+- ✅ Build interactables (7 buildables with material costs)
+
+**Main Focus:** Expanding content (more buildables, enemies, locations, polish)
+
+---
+
+## 🎯 DESIGN PRINCIPLES
+
+- Keep features simple and focused
+- Prioritize gameplay value over complexity
+- Test thoroughly before marking complete
+- Update documentation when adding features
+- Follow existing code patterns and conventions
+- Use world convenience methods (getPlayer, getShip, getSystem, findItemDefinition)
+
+---
+
+**See Also:**
+- **`docs/NEXT_STEPS.md`** - Prioritized development roadmap with implementation details
+- **`docs/FUTURE_IDEAS.md`** - Long-term feature ideas and expansion plans
+- **`docs/IMPLEMENTATION_STATUS.md`** - Current status of all systems

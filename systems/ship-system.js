@@ -25,8 +25,14 @@ class ShipSystem extends System {
 
         // Check if we've reached the consumption interval
         if (this.elapsedTime >= this.waterConsumptionInterval) {
+            // Calculate water consumption (apply recycler reduction if present)
+            let waterUsage = this.waterConsumptionRate;
+            if (shipEntity.hasComponent('WaterRecyclerComponent')) {
+                waterUsage *= 0.5; // 50% reduction
+            }
+
             // Consume water
-            const consumed = ship.consumeWater(this.waterConsumptionRate);
+            const consumed = ship.consumeWater(waterUsage);
 
             // Reset timer (keeping any overflow for accuracy)
             this.elapsedTime -= this.waterConsumptionInterval;

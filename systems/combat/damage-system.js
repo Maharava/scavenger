@@ -1,4 +1,23 @@
-// DamageSystem - Processes damage events, applies armor/resistance, updates body parts
+/**
+ * Damage System
+ * =============
+ * Processes damage events, applies armor/resistance, and handles death/loot.
+ *
+ * Responsibilities:
+ * - Applying damage to specific body parts
+ * - Calculating armor resistance and penetration
+ * - Managing status effects (bleeding, morale loss)
+ * - Handling player and enemy death
+ * - Spawning corpses with loot drops
+ * - Generating random materials from enemy types
+ *
+ * Damage Flow:
+ * 1. processDamageEvent() - Calculates final damage after armor
+ * 2. Updates body part efficiency
+ * 3. Checks for status effects (bleeding at low torso health)
+ * 4. Checks for death conditions (head or torso destroyed)
+ * 5. Calls handleDeath() → spawnEnemyCorpse() or handlePlayerDeath()
+ */
 
 class DamageSystem extends System {
     update(world) {
@@ -183,10 +202,178 @@ class DamageSystem extends System {
             // Handle player death - return to ship with consequences
             this.handlePlayerDeath(world, entity);
         } else {
-            // Handle enemy death
-            // TODO: Spawn corpse with loot
-            // For now, just mark as dead - combat system will detect in checkCombatEnd
+            // Handle enemy death - spawn corpse with loot
+            this.spawnEnemyCorpse(world, entity);
         }
+    }
+
+    spawnEnemyCorpse(world, enemyEntity) {
+        const pos = enemyEntity.getComponent('PositionComponent');
+        const name = enemyEntity.getComponent('NameComponent');
+        const equipped = enemyEntity.getComponent('EquippedItemsComponent');
+
+        if (!pos || !name) return;
+
+        // Create corpse entity
+        const corpse = world.createEntity();
+        world.addComponent(corpse, new PositionComponent(pos.x, pos.y));
+        world.addComponent(corpse, new RenderableComponent('%', '#666', 1));
+        world.addComponent(corpse, new NameComponent(`${name.name} Corpse`));
+        world.addComponent(corpse, new VisibilityStateComponent());
+
+        // Create a container for loot
+        const lootInventory = new Map();
+
+        // Transfer equipped items to corpse
+        if (equipped) {
+            // Transfer weapon
+            if (equipped.hand) {
+                const weaponEntity = world.getEntity(equipped.hand);
+                if (weaponEntity) {
+                    const itemComp = weaponEntity.getComponent('ItemComponent');
+                    if (itemComp) {
+                        lootInventory.set(itemComp.name, {
+                            entityId: equipped.hand,
+                            quantity: 1
+                        });
+                    }
+                }
+            }
+
+            // Transfer armor
+            if (equipped.body) {
+                const armorEntity = world.getEntity(equipped.body);
+                if (armorEntity) {
+                    const itemComp = armorEntity.getComponent('ItemComponent');
+                    if (itemComp) {
+                        lootInventory.set(itemComp.name, {
+                            entityId: equipped.body,
+                            quantity: 1
+                        });
+                    }
+                }
+            }
+        }
+
+        // Add random materials based on enemy type
+        const creatureDef = this.getCreatureDefinition(name.name);
+        const materials = this.generateLootMaterials(world, creatureDef);
+
+        // Add materials to loot inventory
+        for (const materialData of materials) {
+            const existing = lootInventory.get(materialData.name);
+            if (existing) {
+                existing.quantity += materialData.quantity;
+            } else {
+                lootInventory.set(materialData.name, {
+                    entityId: materialData.entityId,
+                    quantity: materialData.quantity
+                });
+            }
+        }
+
+        // Add loot container component to corpse
+        world.addComponent(corpse, new LootContainerComponent(lootInventory));
+
+        // Make corpse interactable for looting
+        world.addComponent(corpse, new InteractableComponent('lootCorpse', { corpseEntity: corpse }));
+
+        console.log(`Spawned corpse for ${name.name} at (${pos.x}, ${pos.y}) with ${lootInventory.size} items`);
+    }
+
+    getCreatureDefinition(creatureName) {
+        return CREATURE_DATA.find(c => c.name === creatureName);
+    }
+
+    generateLootMaterials(world, creatureDef) {
+        const materials = [];
+
+        if (!creatureDef) return materials;
+
+        // Define loot tables based on enemy type
+        let materialPool = [];
+        let dropCount = { min: 1, max: 3 };
+
+        // Humanoid enemies (Scavenger)
+        if (creatureDef.id === 'SCAVENGER') {
+            materialPool = [
+                { id: 'SALVAGED_COMPONENTS', weight: 40 },
+                { id: 'POLYMER_RESIN', weight: 30 },
+                { id: 'BASIC_ELECTRONICS', weight: 20 },
+                { id: 'ARAMID_FIBRES', weight: 10 }
+            ];
+            dropCount = { min: 2, max: 4 };
+        }
+        // Robot enemies (Scout Drone, Security Bot)
+        else if (creatureDef.id === 'SCOUT_DRONE' || creatureDef.id === 'SECURITY_BOT') {
+            materialPool = [
+                { id: 'BASIC_ELECTRONICS', weight: 40 },
+                { id: 'SALVAGED_COMPONENTS', weight: 30 },
+                { id: 'INTACT_LOGIC_BOARD', weight: 15 },
+                { id: 'POLYMER_RESIN', weight: 15 }
+            ];
+            dropCount = { min: 1, max: 3 };
+        }
+        // Future: Aberrant enemies
+        else {
+            // Default loot for unknown types
+            materialPool = [
+                { id: 'SALVAGED_COMPONENTS', weight: 50 },
+                { id: 'POLYMER_RESIN', weight: 50 }
+            ];
+            dropCount = { min: 1, max: 2 };
+        }
+
+        // Roll for number of drops
+        const numDrops = Math.floor(Math.random() * (dropCount.max - dropCount.min + 1)) + dropCount.min;
+
+        // Weighted random selection
+        for (let i = 0; i < numDrops; i++) {
+            const totalWeight = materialPool.reduce((sum, item) => sum + item.weight, 0);
+            let roll = Math.random() * totalWeight;
+
+            for (const item of materialPool) {
+                roll -= item.weight;
+                if (roll <= 0) {
+                    const materialDef = MATERIAL_DATA[item.id];
+                    if (materialDef) {
+                        // Create material entity
+                        const materialEntity = world.createEntity();
+                        world.addComponent(materialEntity, new ItemComponent(
+                            materialDef.name,
+                            materialDef.description || '',
+                            materialDef.weight || 0,
+                            materialDef.slots || 0.5
+                        ));
+                        world.addComponent(materialEntity, new RenderableComponent(
+                            materialDef.char,
+                            materialDef.colour,
+                            0
+                        ));
+                        world.addComponent(materialEntity, new NameComponent(materialDef.name));
+
+                        if (materialDef.stackable) {
+                            world.addComponent(materialEntity, new StackableComponent(1, materialDef.stackLimit || 99));
+                        }
+
+                        // Check if we already have this material in the list
+                        const existing = materials.find(m => m.name === materialDef.name);
+                        if (existing) {
+                            existing.quantity++;
+                        } else {
+                            materials.push({
+                                name: materialDef.name,
+                                entityId: materialEntity,
+                                quantity: 1
+                            });
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        return materials;
     }
 
     handlePlayerDeath(world, entity) {
@@ -202,19 +389,29 @@ class DamageSystem extends System {
         ));
 
         // Apply skill regression (2 random skills)
-        const skillsSystem = world.systems.find(s => s.constructor.name === 'SkillsSystem');
+        const skillsSystem = world.getSystem(SkillsSystem);
         if (skillsSystem) {
             skillsSystem.applyDeathPenalty(world, entity);
         }
 
-        // Clear expedition inventory (items collected during expedition)
-        // We distinguish between "ship inventory" (what you had when leaving)
-        // and "expedition inventory" (what you collected)
-        // For simplicity, we'll clear ALL inventory since save/load handles ship inventory
+        // Clear expedition inventory and equipment (all items lost on death)
+        // Note: This is intentional permadeath consequence - player loses everything
+        // collected during the expedition, including equipped items
+        // Ship inventory/equipment from before expedition is restored via save/load
         const inventory = entity.getComponent('InventoryComponent');
         if (inventory) {
             inventory.items.clear();
             inventory.currentWeight = 0;
+        }
+
+        // Clear equipped items (they will be restored from ship save if applicable)
+        const equipped = entity.getComponent('EquippedItemsComponent');
+        if (equipped) {
+            equipped.hand = null;
+            equipped.body = null;
+            equipped.tool1 = null;
+            equipped.tool2 = null;
+            equipped.backpack = null;
         }
 
         // Restore player health to prevent immediate re-death
@@ -240,7 +437,7 @@ class DamageSystem extends System {
             world.removeComponent(entity.id, 'CombatantComponent');
 
             // Clean up combat session
-            const combatSystem = world.systems.find(s => s.constructor.name === 'CombatSystem');
+            const combatSystem = world.getSystem(CombatSystem);
             if (combatSystem && combatSystem.activeCombatSession) {
                 combatSystem.endCombat(world);
             }
@@ -269,13 +466,12 @@ class DamageSystem extends System {
             totalMinutes: timeComp.totalMinutes
         } : null;
 
-        // Clear all entities except player components we want to keep
+        // Save player state components that persist through death
+        // Note: Inventory and equipment are NOT saved - player loses all items on death
         const savedComponents = {
             skills: entity.getComponent('SkillsComponent'),
             stats: entity.getComponent('CreatureStatsComponent'),
             bodyParts: entity.getComponent('BodyPartsComponent'),
-            inventory: entity.getComponent('InventoryComponent'),
-            equipped: entity.getComponent('EquippedItemsComponent'),
             time: entity.getComponent('TimeComponent')
         };
 
@@ -283,7 +479,7 @@ class DamageSystem extends System {
         buildWorld(world, 'SHIP');
 
         // Find the new player entity
-        const newPlayer = world.query(['PlayerComponent'])[0];
+        const newPlayer = world.getPlayer();
         if (newPlayer && savedComponents) {
             // Restore components
             if (savedComponents.skills) {

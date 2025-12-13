@@ -23,18 +23,40 @@ const MAP_DATA = {
             "........................................"
         ],
         // Doors at positions (4,3), (3,5), (3,8)
+        // Bridge Console at (5,1) for ship management
         // Bed at position (1,6) for sleeping
+        // Cargo Hold at (1,7) for ship storage
         // Hydroponics Bay at (1,8), Water Tank at (1,9)
         // Airlock at (8,8) for starting expeditions
         interactables: [
             { id: 'DOOR_CLOSED', x: 5, y: 3 },
             { id: 'DOOR_CLOSED', x: 3, y: 5 },
             { id: 'DOOR_CLOSED', x: 3, y: 8 },
+            { id: 'BRIDGE_CONSOLE', x: 5, y: 1 },
             { id: 'BED', x: 1, y: 6 },
+            { id: 'SHIP_CARGO', x: 1, y: 7 },
             { id: 'HYDROPONICS_BAY', x: 1, y: 8 },
             { id: 'WATER_TANK', x: 1, y: 9 },
             { id: 'WATER_CANISTER', x: 2, y: 9 },
-            { id: 'Airlock', x: 8, y: 8 }
+            { id: 'Airlock', x: 8, y: 8 },
+            // New interactables for testing
+            { id: 'SHOWER', x: 4, y: 6 },
+            { id: 'WATER_RECYCLER', x: 7, y: 1 },
+            { id: 'LIFE_SUPPORT', x: 6, y: 1 },
+            { id: 'AUTO_DOC', x: 4, y: 7 },
+            { id: 'REFINERY', x: 2, y: 6 },
+            { id: 'WORKBENCH', x: 5, y: 8 },
+            { id: 'STOVE', x: 4, y: 9 },
+            { id: 'RECYCLER', x: 5, y: 9 },
+            // Test materials on ground
+            { id: 'POLYMER_RESIN', x: 6, y: 6 },
+            { id: 'BASIC_ELECTRONICS', x: 6, y: 7 },
+            { id: 'ORGANIC_PROTEIN', x: 6, y: 8 },
+            { id: 'CHEMICAL_COMPOUNDS', x: 6, y: 9 },
+            { id: 'INTACT_LOGIC_BOARD', x: 7, y: 6 },
+            { id: 'TITANIUM_ALLOY', x: 7, y: 7 },
+            { id: 'ARAMID_FIBRES', x: 7, y: 8 },
+            { id: 'FOCUSING_LENSES', x: 7, y: 9 }
         ],
         creatures: [],
         playerSpawn: { x: 1, y: 5 }

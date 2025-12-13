@@ -24,8 +24,8 @@ class RenderSystem extends System {
         }
 
         // Get combat info for target blinking
-        const player = world.query(['PlayerComponent'])[0];
-        const combatSystem = world.systems.find(s => s.constructor.name === 'CombatSystem');
+        const player = world.getPlayer();
+        const combatSystem = world.getSystem(CombatSystem);
         const inCombat = player && player.hasComponent('CombatStateComponent');
         let selectedEnemyId = null;
         let isPlayerTurn = false;
@@ -130,6 +130,44 @@ class RenderSystem extends System {
                 char: render.char,
                 colour: isSelectedEnemy ? '#ffff00' : render.colour // Yellow when selected
             };
+        }
+
+        // Render placement cursor if in placement mode
+        const placementEntity = world.query(['PlacementModeComponent'])[0];
+        if (placementEntity) {
+            const placementMode = placementEntity.getComponent('PlacementModeComponent');
+
+            // Update flash timer
+            const deltaTime = world.game.deltaTime || 16; // milliseconds
+            placementMode.cursorFlashTimer += deltaTime;
+
+            if (placementMode.cursorFlashTimer >= placementMode.flashInterval) {
+                placementMode.cursorVisible = !placementMode.cursorVisible;
+                placementMode.cursorFlashTimer = 0;
+            }
+
+            // Only render if cursor is in visible phase
+            if (placementMode.cursorVisible) {
+                const cursorScreenX = placementMode.cursorX - cameraX;
+                const cursorScreenY = placementMode.cursorY - cameraY;
+
+                // Check if cursor is on screen
+                if (cursorScreenX >= 0 && cursorScreenX < width &&
+                    cursorScreenY >= 0 && cursorScreenY < height) {
+
+                    // Get buildable to determine char
+                    const buildable = BUILDABLE_INTERACTABLES.find(b => b.id === placementMode.buildableId);
+
+                    // Check if location is valid
+                    const isValid = isValidPlacementLocation(world, placementMode.cursorX, placementMode.cursorY);
+                    const cursorColor = isValid ? '#00ff00' : '#ff0000'; // Green if valid, red if not
+
+                    grid[cursorScreenY][cursorScreenX] = {
+                        char: buildable ? buildable.char : 'X',
+                        colour: cursorColor
+                    };
+                }
+            }
         }
 
         // Preserve the overlay before clearing
@@ -436,7 +474,7 @@ class RenderSystem extends System {
         const tileWidth = containerRect.width / world.game.width;
         const tileHeight = containerRect.height / world.game.height;
 
-        const player = world.query(['PlayerComponent'])[0];
+        const player = world.getPlayer();
         if (!player) return;
 
         const equipped = player.getComponent('EquippedItemsComponent');

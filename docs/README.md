@@ -2,8 +2,13 @@
 
 This directory contains design documents, implementation guides, and modding references for the Scavenger game.
 
-## 📊 [Implementation Status](IMPLEMENTATION_STATUS.md)
-**NEW:** Comprehensive overview of what's implemented, partial, and missing. Start here to understand the current state of the game.
+## 📊 Project Status
+
+- **[Implementation Status](IMPLEMENTATION_STATUS.md)** - What's implemented, partial, and missing
+- **[Future Ideas](FUTURE_IDEAS.md)** - Comprehensive list of planned features and enhancements
+- **[Current To-Do](../todo.md)** - Active development priorities
+
+Start here to understand the current state of the game and what's planned next.
 
 ## Quick Start for Modders
 
@@ -48,6 +53,26 @@ This directory contains design documents, implementation guides, and modding ref
   - Skill boosts and special abilities
   - Light radius and weight modifiers
 
+- **Temperature System** ✅ ([temperature_system.md](temperature_system.md))
+  - NEW: Fully implemented (December 2024)
+  - 3 temperature zones (comfortable/harsh/extreme)
+  - Comfort and stress effects
+  - Body part damage in extreme conditions
+  - Armor temperature modifier integration
+
+- **Death/Permadeath System** ✅
+  - Player death with consequences
+  - Skill regression (2 random skills)
+  - Return to ship after 3 seconds
+  - Health and stat restoration
+
+- **Ship Cargo System** ✅
+  - NEW: Fully implemented (December 2024)
+  - 20-slot expandable cargo hold
+  - Deposit/withdraw items from ship inventory
+  - Producer integration (use seeds from cargo)
+  - Full save/load persistence
+
 - **ECS Architecture** ([ecs_design.md](ecs_design.md))
   - Entity-Component-System pattern
   - Component and system organization
@@ -55,9 +80,14 @@ This directory contains design documents, implementation guides, and modding ref
 
 ### Planned/In-Progress Systems
 
-- **Temperature System** ([temperature_system.md](temperature_system.md))
+- **Crafting System** ([crafting_mat.md](crafting_mat.md))
+  - Material collection and storage
+  - Recipe system with skill requirements
+  - Workbench-based crafting
+
 - **Module System** ([module_system.md](module_system.md))
-- **Crafting Materials** ([crafting_mat.md](crafting_mat.md))
+  - Weapon and armor modification slots
+  - Attachment-based stat bonuses
 
 ## Game Design
 

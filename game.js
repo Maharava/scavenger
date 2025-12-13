@@ -73,6 +73,8 @@ class Game {
         this.world.registerSystem(new ProducerSystem());
         this.world.registerSystem(new SkillsSystem());
         this.world.registerSystem(new TemperatureSystem());
+        this.world.registerSystem(new ShowerSystem());
+        this.world.registerSystem(new LifeSupportSystem());
         // Combat systems
         this.world.registerSystem(new CombatSystem());
         this.world.registerSystem(new ActionResolutionSystem());
@@ -87,9 +89,30 @@ class Game {
         // Create the game world using the builder
         buildWorld(this.world, 'SHIP');
 
+        // Setup autosave every 10 minutes
+        this.setupAutosave();
+
         // Start the game loop
         this.lastFrameTime = performance.now();
         this.gameLoop();
+    }
+
+    setupAutosave() {
+        // Autosave every 10 minutes (600000 milliseconds)
+        const AUTOSAVE_INTERVAL = 10 * 60 * 1000;
+
+        setInterval(() => {
+            const player = this.world.query(['PlayerComponent'])[0];
+            if (player) {
+                saveShipState(this.world);
+                console.log('Autosave: Game saved successfully');
+
+                // Show autosave notification
+                this.world.addComponent(player.id, new MessageComponent('Game autosaved', 'cyan'));
+            }
+        }, AUTOSAVE_INTERVAL);
+
+        console.log('Autosave enabled: saving every 10 minutes');
     }
 
     gameLoop() {
